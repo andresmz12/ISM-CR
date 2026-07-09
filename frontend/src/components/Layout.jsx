@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Icon, { Avatar } from './Icon';
 
@@ -39,64 +38,12 @@ const navSections = [
 
 const ROLE_LABELS = { ADMIN: 'Administrador', SUPERVISOR: 'Supervisor', AGENT: 'Agente' };
 
-const QUICK_CREATE = [
-  { label: 'Nuevo cliente', to: '/clients', icon: 'clients', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
-];
-
 function currentSectionLabel(pathname) {
   const flat = navSections.flatMap((s) => s.items);
   const match = flat.find((item) => (item.to === '/' ? pathname === '/' : pathname.startsWith(item.to)));
   if (match) return match.label;
   if (pathname.startsWith('/admin')) return 'Administración';
   return 'ISM CRM';
-}
-
-function QuickCreateMenu({ role }) {
-  const [open, setOpen] = useState(false);
-  const navigate = useNavigate();
-  const items = QUICK_CREATE.filter((item) => item.roles.includes(role));
-  if (items.length === 0) return null;
-
-  if (items.length === 1) {
-    const only = items[0];
-    return (
-      <button
-        onClick={() => navigate(only.to, { state: { openNew: true } })}
-        className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-orange-600/25 transition hover:bg-orange-700"
-      >
-        <Icon name="plus" className="h-4 w-4" />
-        {only.label}
-      </button>
-    );
-  }
-
-  return (
-    <div className="relative">
-      <button
-        onClick={() => setOpen((o) => !o)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
-        className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-orange-600/25 transition hover:bg-orange-700"
-      >
-        <Icon name="plus" className="h-4 w-4" />
-        Crear
-      </button>
-      {open && (
-        <div className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-          {items.map((item) => (
-            <button
-              key={item.to}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => { setOpen(false); navigate(item.to, { state: { openNew: true } }); }}
-              className="flex w-full items-center gap-2.5 px-3.5 py-2 text-left text-sm text-slate-700 transition hover:bg-slate-50"
-            >
-              <Icon name={item.icon} className="h-4 w-4 text-slate-400" />
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default function Layout() {
@@ -170,13 +117,12 @@ export default function Layout() {
       </aside>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex shrink-0 items-center justify-between border-b border-slate-200 bg-white px-6 py-3 lg:px-8">
+        <header className="flex shrink-0 items-center border-b border-slate-200 bg-white px-6 py-3 lg:px-8">
           <div className="flex items-center gap-2 text-sm text-slate-500">
             <span>ISM CRM</span>
             <Icon name="chevronRight" className="h-3.5 w-3.5 text-slate-300" />
             <span className="font-medium text-slate-900">{currentSectionLabel(location.pathname)}</span>
           </div>
-          <QuickCreateMenu role={user?.role} />
         </header>
 
         <main className="flex-1 overflow-y-auto">
