@@ -1,7 +1,7 @@
 const express = require('express');
 const { z } = require('zod');
 const {
-  listClients, getClient, createClient, updateClient, reassignClient, dailyTasks, overdueTasks, importClients,
+  listClients, getClient, createClient, updateClient, reassignClient, dailyTasks, overdueTasks, rangeTasks, importClients,
 } = require('../controllers/clientController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { validate } = require('../utils/validate');
@@ -19,6 +19,7 @@ const createSchema = z.object({
   address: z.string().optional(),
   statusId: z.string().uuid().optional(),
   assignedAgentId: z.string().uuid().optional(),
+  companyId: z.string().uuid().optional(),
   source: z.string().optional(),
   tags: z.array(z.string()).optional(),
   nextFollowUpAt: z.string().datetime().optional(),
@@ -97,6 +98,27 @@ router.get('/tasks/today', dailyTasks);
  *       200: { description: Overdue follow-ups }
  */
 router.get('/tasks/overdue', overdueTasks);
+
+/**
+ * @openapi
+ * /clients/tasks/range:
+ *   get:
+ *     summary: Clients with a follow-up date within a given range (used by the calendar view)
+ *     tags: [Clients]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: start
+ *         required: true
+ *         schema: { type: string, format: date-time }
+ *       - in: query
+ *         name: end
+ *         required: true
+ *         schema: { type: string, format: date-time }
+ *     responses:
+ *       200: { description: Follow-ups within the range }
+ */
+router.get('/tasks/range', rangeTasks);
 
 /**
  * @openapi

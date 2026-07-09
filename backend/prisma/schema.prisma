@@ -22,6 +22,15 @@ enum InteractionType {
   OTHER
 }
 
+enum DealStage {
+  PROSPECTING
+  QUALIFICATION
+  PROPOSAL
+  NEGOTIATION
+  WON
+  LOST
+}
+
 model User {
   id           String   @id @default(uuid())
   fullName     String
@@ -35,6 +44,7 @@ model User {
   assignedClients Client[]           @relation("AssignedAgent")
   interactions    Interaction[]
   reassignedFrom  ClientAssignment[] @relation("ReassignedBy")
+  deals           Deal[]
 
   @@map("users")
 }
@@ -66,16 +76,20 @@ model Client {
   source          String?
   tags            String[]  @default([])
   nextFollowUpAt  DateTime?
+  companyId       String?
+  company         Company?  @relation(fields: [companyId], references: [id])
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   interactions Interaction[]
   assignments  ClientAssignment[]
   auditLogs    AuditLog[]
+  deals        Deal[]
 
   @@index([statusId])
   @@index([assignedAgentId])
   @@index([phone])
+  @@index([companyId])
   @@map("clients")
 }
 
@@ -133,4 +147,46 @@ model ApiKey {
   lastUsedAt DateTime?
 
   @@map("api_keys")
+}
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  industry  String?
+  phone     String?
+  website   String?
+  address   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  clients Client[]
+  deals   Deal[]
+
+  @@index([name])
+  @@map("companies")
+}
+
+model Deal {
+  id                String    @id @default(uuid())
+  title             String
+  clientId          String?
+  client            Client?   @relation(fields: [clientId], references: [id])
+  companyId         String?
+  company           Company?  @relation(fields: [companyId], references: [id])
+  amount            Float?
+  stage             DealStage @default(PROSPECTING)
+  ownerId           String?
+  owner             User?     @relation(fields: [ownerId], references: [id])
+  expectedCloseDate DateTime?
+  closedAt          DateTime?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@index([stage])
+  @@index([ownerId])
+  @@index([clientId])
+  @@index([companyId])
+  @@map("deals")
 }

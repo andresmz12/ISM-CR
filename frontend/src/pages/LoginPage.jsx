@@ -29,10 +29,10 @@ export default function LoginPage() {
     <div className="flex min-h-screen">
       {/* Panel de marca */}
       <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-slate-900 p-12 lg:flex">
-        <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-indigo-600/30 blur-3xl" />
-        <div className="absolute -bottom-40 -right-24 h-96 w-96 rounded-full bg-violet-600/20 blur-3xl" />
+        <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-orange-600/30 blur-3xl" />
+        <div className="absolute -bottom-40 -right-24 h-96 w-96 rounded-full bg-amber-500/20 blur-3xl" />
         <div className="relative flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white shadow-lg shadow-indigo-500/30">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-sm font-bold text-white shadow-lg shadow-orange-500/30">
             ISM
           </span>
           <span className="text-lg font-semibold text-white">ISM CRM</span>
@@ -45,9 +45,9 @@ export default function LoginPage() {
             Seguimiento comercial, historial de interacciones y tareas del día para todo el equipo.
           </p>
           <div className="mt-8 flex gap-6 text-sm text-slate-400">
-            <div className="flex items-center gap-2"><Icon name="clients" className="h-4 w-4 text-indigo-400" /> Pipeline visual</div>
-            <div className="flex items-center gap-2"><Icon name="activity" className="h-4 w-4 text-indigo-400" /> Actividad en tiempo real</div>
-            <div className="flex items-center gap-2"><Icon name="upload" className="h-4 w-4 text-indigo-400" /> Importación desde Excel</div>
+            <div className="flex items-center gap-2"><Icon name="clients" className="h-4 w-4 text-orange-400" /> Pipeline visual</div>
+            <div className="flex items-center gap-2"><Icon name="activity" className="h-4 w-4 text-orange-400" /> Actividad en tiempo real</div>
+            <div className="flex items-center gap-2"><Icon name="upload" className="h-4 w-4 text-orange-400" /> Importación desde Excel</div>
           </div>
         </div>
         <div className="relative text-xs text-slate-500">© {new Date().getFullYear()} ISM Consulting Services</div>
@@ -57,7 +57,7 @@ export default function LoginPage() {
       <div className="flex flex-1 items-center justify-center bg-slate-50 p-6">
         <form onSubmit={handleSubmit} className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-sm font-bold text-white">
               ISM
             </span>
           </div>
@@ -77,7 +77,7 @@ export default function LoginPage() {
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mb-4 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="mb-4 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
             placeholder="tu@empresa.com"
           />
 
@@ -88,14 +88,14 @@ export default function LoginPage() {
             autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mb-6 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            className="mb-6 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
             placeholder="••••••••"
           />
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 transition hover:bg-indigo-700 disabled:opacity-50"
+            className="w-full rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-orange-600/25 transition hover:bg-orange-700 disabled:opacity-50"
           >
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>

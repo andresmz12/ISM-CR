@@ -23,6 +23,9 @@ const PATHS = {
   clock: 'M12 22c5.52 0 10-4.48 10-10S17.52 2 12 2 2 6.48 2 12s4.48 10 10 10zM12 6v6l4 2',
   chevronLeft: 'M15 18l-6-6 6-6',
   chevronRight: 'M9 18l6-6-6-6',
+  briefcase: 'M20 7h-3V5a2 2 0 0 0-2-2H9a2 2 0 0 0-2 2v2H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V8a1 1 0 0 0-1-1zM9 5h6v2H9zM3 13h18M9 13v2M15 13v2',
+  building: 'M6 22V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v18M6 22h12M6 22H4M18 22h2M10 7h1M13 7h1M10 11h1M13 11h1M10 15h1M13 15h1',
+  trendingUp: 'M23 6l-9.5 9.5-5-5L1 18M17 6h6v6',
 };
 
 export default function Icon({ name, className = 'h-5 w-5', strokeWidth = 2 }) {
@@ -42,7 +45,7 @@ export function Avatar({ name = '', className = 'h-8 w-8 text-xs' }) {
   let hash = 0;
   for (let i = 0; i < name.length; i += 1) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
   const palette = [
-    'bg-indigo-500', 'bg-violet-500', 'bg-sky-500', 'bg-teal-500',
+    'bg-orange-500', 'bg-violet-500', 'bg-sky-500', 'bg-teal-500',
     'bg-emerald-500', 'bg-amber-500', 'bg-rose-500', 'bg-fuchsia-500',
   ];
   return (

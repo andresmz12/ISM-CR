@@ -6,7 +6,7 @@ import Icon, { Avatar } from '../components/Icon';
 const TYPE_LABELS = { CALL: 'Llamada', EMAIL: 'Email', WHATSAPP: 'WhatsApp', SMS: 'SMS', VISIT: 'Visita', OTHER: 'Otro' };
 const TYPE_ICONS = { CALL: 'phone', EMAIL: 'mail', WHATSAPP: 'phone', SMS: 'mail', VISIT: 'clients', OTHER: 'activity' };
 
-const BAR_COLORS = ['bg-indigo-500', 'bg-violet-500', 'bg-sky-500', 'bg-teal-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500'];
+const BAR_COLORS = ['bg-orange-500', 'bg-violet-500', 'bg-sky-500', 'bg-teal-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500'];
 
 function BarList({ items, emptyText }) {
   const max = Math.max(1, ...items.map((i) => i.count));
@@ -80,7 +80,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-indigo-200 border-t-indigo-600" />
+        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-orange-200 border-t-orange-600" />
       </div>
     );
   }
@@ -105,7 +105,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon="clients" label="Total de clientes" value={data.totalClients} accent="bg-indigo-50 text-indigo-600" />
+        <StatCard icon="clients" label="Total de clientes" value={data.totalClients} accent="bg-orange-50 text-orange-600" />
         <StatCard icon="activity" label="Interacciones" value={totalInteractions} accent="bg-violet-50 text-violet-600" />
         <StatCard icon="calendar" label="Seguimientos hoy" value={tasks.today} accent="bg-sky-50 text-sky-600" />
         <StatCard icon="clock" label="Seguimientos vencidos" value={tasks.overdue} accent="bg-rose-50 text-rose-600" sub={tasks.overdue > 0 ? 'Requieren atención' : 'Todo al día'} />
@@ -158,7 +158,7 @@ export default function DashboardPage() {
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 text-sm">
-                  <Link to={`/clients/${i.client.id}`} className="font-semibold text-slate-900 hover:text-indigo-600">
+                  <Link to={`/clients/${i.client.id}`} className="font-semibold text-slate-900 hover:text-orange-600">
                     {i.client.fullName}
                   </Link>
                   <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">

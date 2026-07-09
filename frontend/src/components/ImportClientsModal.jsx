@@ -120,7 +120,7 @@ export default function ImportClientsModal({ onClose, onImported }) {
       <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <div className="flex items-center gap-3">
-            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-orange-100 text-orange-600">
               <Icon name="upload" className="h-5 w-5" />
             </span>
             <div>
@@ -145,9 +145,9 @@ export default function ImportClientsModal({ onClose, onImported }) {
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); }}
               onClick={() => inputRef.current?.click()}
-              className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center transition hover:border-indigo-400 hover:bg-indigo-50/50"
+              className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center transition hover:border-orange-400 hover:bg-orange-50/50"
             >
-              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-indigo-500 shadow-sm">
+              <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-orange-500 shadow-sm">
                 <Icon name="file" className="h-7 w-7" strokeWidth={1.5} />
               </span>
               <div>
@@ -167,7 +167,7 @@ export default function ImportClientsModal({ onClose, onImported }) {
                 <Icon name="file" className="h-4 w-4 text-slate-400" />
                 <span className="font-medium text-slate-800">{fileName}</span>
                 <span>· {rows.length} filas detectadas</span>
-                <button onClick={() => { setStep('upload'); setRows([]); }} className="ml-auto text-xs font-medium text-indigo-600 hover:underline">
+                <button onClick={() => { setStep('upload'); setRows([]); }} className="ml-auto text-xs font-medium text-orange-600 hover:underline">
                   Cambiar archivo
                 </button>
               </div>
@@ -183,7 +183,7 @@ export default function ImportClientsModal({ onClose, onImported }) {
                       <select
                         value={mapping[f.key] ?? ''}
                         onChange={(e) => setMapping((m) => ({ ...m, [f.key]: e.target.value === '' ? '' : Number(e.target.value) }))}
-                        className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-indigo-500 focus:outline-none"
+                        className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-orange-500 focus:outline-none"
                       >
                         <option value="">— No importar —</option>
                         {headers.map((h, i) => <option key={i} value={i}>{h || `Columna ${i + 1}`}</option>)}
@@ -221,11 +221,11 @@ export default function ImportClientsModal({ onClose, onImported }) {
                 <h3 className="mb-2 text-sm font-semibold text-slate-800">3. Si un teléfono ya existe en el CRM</h3>
                 <div className="flex gap-4 text-sm">
                   <label className="flex items-center gap-2">
-                    <input type="radio" checked={duplicateAction === 'skip'} onChange={() => setDuplicateAction('skip')} className="accent-indigo-600" />
+                    <input type="radio" checked={duplicateAction === 'skip'} onChange={() => setDuplicateAction('skip')} className="accent-orange-600" />
                     Omitir la fila (recomendado)
                   </label>
                   <label className="flex items-center gap-2">
-                    <input type="radio" checked={duplicateAction === 'create'} onChange={() => setDuplicateAction('create')} className="accent-indigo-600" />
+                    <input type="radio" checked={duplicateAction === 'create'} onChange={() => setDuplicateAction('create')} className="accent-orange-600" />
                     Crear de todos modos
                   </label>
                 </div>
@@ -238,7 +238,7 @@ export default function ImportClientsModal({ onClose, onImported }) {
                 <button
                   onClick={handleImport}
                   disabled={!canImport || importing}
-                  className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-700 disabled:opacity-50"
                 >
                   <Icon name="upload" className="h-4 w-4" />
                   {importing ? 'Importando...' : `Importar ${rows.length} clientes`}
@@ -278,7 +278,7 @@ export default function ImportClientsModal({ onClose, onImported }) {
                   {result.errors.map((e, i) => <div key={i}>Fila {e.row}: {e.error}</div>)}
                 </div>
               )}
-              <button onClick={onClose} className="rounded-lg bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+              <button onClick={onClose} className="rounded-lg bg-orange-600 px-5 py-2 text-sm font-semibold text-white hover:bg-orange-700">
                 Cerrar
               </button>
             </div>

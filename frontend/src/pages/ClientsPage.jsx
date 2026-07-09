@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
@@ -10,11 +10,14 @@ import Icon, { Avatar } from '../components/Icon';
 
 export default function ClientsPage() {
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const canFilterByAgent = user.role !== 'AGENT';
 
   const [view, setView] = useState('kanban');
   const [statuses, setStatuses] = useState([]);
   const [agents, setAgents] = useState([]);
+  const [companies, setCompanies] = useState([]);
   const [clients, setClients] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -22,8 +25,12 @@ export default function ClientsPage() {
   const [statusId, setStatusId] = useState('');
   const [assignedAgentId, setAssignedAgentId] = useState('');
   const [loading, setLoading] = useState(true);
-  const [showNewModal, setShowNewModal] = useState(false);
+  const [showNewModal, setShowNewModal] = useState(!!location.state?.openNew);
   const [showImportModal, setShowImportModal] = useState(false);
+
+  useEffect(() => {
+    if (location.state?.openNew) navigate(location.pathname, { replace: true, state: {} });
+  }, [location, navigate]);
 
   const pageSize = view === 'kanban' ? 200 : 25;
 
@@ -37,6 +44,7 @@ export default function ClientsPage() {
 
   useEffect(() => {
     api.get('/statuses').then((res) => setStatuses(res.data));
+    api.get('/companies').then((res) => setCompanies(res.data)).catch(() => {});
     if (canFilterByAgent) {
       api.get('/users').then((res) => setAgents(res.data.filter((u) => u.active))).catch(() => {});
     }
@@ -55,7 +63,7 @@ export default function ClientsPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-  const inputCls = 'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20';
+  const inputCls = 'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20';
 
   return (
     <div className="space-y-5">
@@ -88,7 +96,7 @@ export default function ClientsPage() {
           </button>
           <button
             onClick={() => setShowNewModal(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-indigo-600/25 transition hover:bg-indigo-700"
+            className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-orange-600/25 transition hover:bg-orange-700"
           >
             <Icon name="plus" className="h-4 w-4" />
             Nuevo cliente
@@ -120,7 +128,7 @@ export default function ClientsPage() {
 
       {loading ? (
         <div className="flex h-48 items-center justify-center">
-          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-indigo-200 border-t-indigo-600" />
+          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-orange-200 border-t-orange-600" />
         </div>
       ) : view === 'kanban' ? (
         <KanbanBoard statuses={statuses} clients={clients} onDropClient={handleDropClient} />
@@ -143,7 +151,7 @@ export default function ClientsPage() {
                     <Link to={`/clients/${c.id}`} className="flex items-center gap-3">
                       <Avatar name={c.fullName} className="h-9 w-9 text-xs" />
                       <div>
-                        <div className="font-semibold text-slate-900 hover:text-indigo-600">{c.fullName}</div>
+                        <div className="font-semibold text-slate-900 hover:text-orange-600">{c.fullName}</div>
                         {c.source && <div className="text-xs text-slate-400">{c.source}</div>}
                       </div>
                     </Link>
@@ -207,6 +215,7 @@ export default function ClientsPage() {
         <NewClientModal
           statuses={statuses}
           agents={agents}
+          companies={companies}
           onClose={() => setShowNewModal(false)}
           onCreated={() => fetchClients()}
         />

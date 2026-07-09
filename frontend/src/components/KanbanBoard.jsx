@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import Icon, { Avatar } from './Icon';
 
 const COLUMN_ACCENTS = [
-  'bg-sky-400', 'bg-indigo-400', 'bg-violet-400', 'bg-amber-400',
+  'bg-sky-400', 'bg-orange-400', 'bg-violet-400', 'bg-amber-400',
   'bg-rose-400', 'bg-emerald-400', 'bg-slate-400',
 ];
 
@@ -32,7 +32,7 @@ export default function KanbanBoard({ statuses, clients, onDropClient }) {
           }}
           className={`flex w-72 shrink-0 flex-col rounded-2xl border transition ${
             overStatus === status.id
-              ? 'border-indigo-400 bg-indigo-50/70 ring-2 ring-indigo-200'
+              ? 'border-orange-400 bg-orange-50/70 ring-2 ring-orange-200'
               : 'border-slate-200 bg-slate-50/80'
           }`}
         >
@@ -56,7 +56,7 @@ export default function KanbanBoard({ statuses, clients, onDropClient }) {
                 <div className="flex items-center gap-2.5">
                   <Avatar name={client.fullName} className="h-8 w-8 text-[10px]" />
                   <div className="min-w-0">
-                    <Link to={`/clients/${client.id}`} className="block truncate text-sm font-semibold text-slate-900 hover:text-indigo-600">
+                    <Link to={`/clients/${client.id}`} className="block truncate text-sm font-semibold text-slate-900 hover:text-orange-600">
                       {client.fullName}
                     </Link>
                     <div className="flex items-center gap-1 text-xs text-slate-400">

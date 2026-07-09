@@ -49,7 +49,7 @@ async function listClients(req, res) {
   const [items, total] = await Promise.all([
     prisma.client.findMany({
       where,
-      include: { status: true, assignedAgent: { select: { id: true, fullName: true } } },
+      include: { status: true, assignedAgent: { select: { id: true, fullName: true } }, company: { select: { id: true, name: true } } },
       orderBy: { updatedAt: 'desc' },
       skip,
       take,
@@ -67,6 +67,7 @@ async function getClient(req, res) {
     include: {
       status: true,
       assignedAgent: { select: { id: true, fullName: true } },
+      company: true,
       interactions: {
         include: { user: { select: { id: true, fullName: true } }, resultStatus: true },
         orderBy: { createdAt: 'desc' },
@@ -79,7 +80,7 @@ async function getClient(req, res) {
 }
 
 async function createClient(req, res) {
-  const { fullName, phone, phoneAlt, email, address, statusId, assignedAgentId, source, tags, nextFollowUpAt } = req.body;
+  const { fullName, phone, phoneAlt, email, address, statusId, assignedAgentId, companyId, source, tags, nextFollowUpAt } = req.body;
   let finalStatusId = statusId;
   if (!finalStatusId) {
     const def = await prisma.status.findFirst({ where: { isDefault: true } });
@@ -87,6 +88,8 @@ async function createClient(req, res) {
   }
 
   const duplicates = await findDuplicates(phone, phoneAlt);
+  // Un AGENT no puede asignar el cliente a otro agente al crearlo.
+  const finalAssignedAgentId = req.user.role === 'AGENT' ? req.user.sub : (assignedAgentId ?? undefined);
 
   const client = await prisma.client.create({
     data: {
@@ -96,12 +99,13 @@ async function createClient(req, res) {
       email,
       address,
       statusId: finalStatusId,
-      assignedAgentId: assignedAgentId ?? (req.user.role === 'AGENT' ? req.user.sub : undefined),
+      assignedAgentId: finalAssignedAgentId,
+      companyId,
       source,
       tags: tags ?? [],
       nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : undefined,
     },
-    include: { status: true, assignedAgent: { select: { id: true, fullName: true } } },
+    include: { status: true, assignedAgent: { select: { id: true, fullName: true } }, company: { select: { id: true, name: true } } },
   });
 
   res.status(201).json({ ...client, duplicateWarning: duplicates.length > 0 ? duplicates : undefined });
@@ -112,7 +116,7 @@ async function updateClient(req, res) {
   const existing = await prisma.client.findFirst({ where: { id, ...scopeFilter(req.user) } });
   if (!existing) return res.status(404).json({ error: 'Client not found' });
 
-  const { fullName, phone, phoneAlt, email, address, statusId, source, tags, nextFollowUpAt } = req.body;
+  const { fullName, phone, phoneAlt, email, address, statusId, companyId, source, tags, nextFollowUpAt } = req.body;
   const data = {};
   if (fullName !== undefined) data.fullName = fullName;
   if (phone !== undefined) data.phone = phone;
@@ -120,6 +124,7 @@ async function updateClient(req, res) {
   if (email !== undefined) data.email = email;
   if (address !== undefined) data.address = address;
   if (statusId !== undefined) data.statusId = statusId;
+  if (companyId !== undefined) data.companyId = companyId;
   if (source !== undefined) data.source = source;
   if (tags !== undefined) data.tags = tags;
   if (nextFollowUpAt !== undefined) data.nextFollowUpAt = nextFollowUpAt ? new Date(nextFollowUpAt) : null;
@@ -133,7 +138,7 @@ async function updateClient(req, res) {
     prisma.client.update({
       where: { id },
       data,
-      include: { status: true, assignedAgent: { select: { id: true, fullName: true } } },
+      include: { status: true, assignedAgent: { select: { id: true, fullName: true } }, company: { select: { id: true, name: true } } },
     }),
     ...auditEntries.map((entry) => prisma.auditLog.create({ data: entry })),
   ]);
@@ -178,6 +183,21 @@ async function dailyTasks(req, res) {
   const where = {
     ...scopeFilter(req.user),
     nextFollowUpAt: { gte: start, lte: end },
+  };
+
+  const items = await prisma.client.findMany({
+    where,
+    include: { status: true, assignedAgent: { select: { id: true, fullName: true } } },
+    orderBy: { nextFollowUpAt: 'asc' },
+  });
+  res.json(items);
+}
+
+async function rangeTasks(req, res) {
+  const { start, end } = req.query;
+  const where = {
+    ...scopeFilter(req.user),
+    nextFollowUpAt: { gte: new Date(start), lte: new Date(end) },
   };
 
   const items = await prisma.client.findMany({
@@ -270,5 +290,5 @@ async function importClients(req, res) {
 }
 
 module.exports = wrapAll({
-  listClients, getClient, createClient, updateClient, reassignClient, dailyTasks, overdueTasks, importClients,
+  listClients, getClient, createClient, updateClient, reassignClient, dailyTasks, overdueTasks, rangeTasks, importClients,
 });
