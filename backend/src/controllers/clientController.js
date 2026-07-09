@@ -145,6 +145,14 @@ async function updateClient(req, res) {
   res.json(client);
 }
 
+async function deleteClient(req, res) {
+  const { id } = req.params;
+  const existing = await prisma.client.findFirst({ where: { id, ...scopeFilter(req.user) } });
+  if (!existing) return res.status(404).json({ error: 'Client not found' });
+  await prisma.client.delete({ where: { id } });
+  res.status(204).send();
+}
+
 async function reassignClient(req, res) {
   const { id } = req.params;
   const { agentId } = req.body;
@@ -290,5 +298,5 @@ async function importClients(req, res) {
 }
 
 module.exports = wrapAll({
-  listClients, getClient, createClient, updateClient, reassignClient, dailyTasks, overdueTasks, rangeTasks, importClients,
+  listClients, getClient, createClient, updateClient, deleteClient, reassignClient, dailyTasks, overdueTasks, rangeTasks, importClients,
 });

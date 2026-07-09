@@ -6,6 +6,7 @@ import KanbanBoard from '../components/KanbanBoard';
 import { colorForStatus } from '../components/StatusBadge';
 import NewClientModal from '../components/NewClientModal';
 import ImportClientsModal from '../components/ImportClientsModal';
+import QuickNoteModal from '../components/QuickNoteModal';
 import Icon, { Avatar } from '../components/Icon';
 
 export default function ClientsPage() {
@@ -27,6 +28,7 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [showNewModal, setShowNewModal] = useState(!!location.state?.openNew);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [noteClient, setNoteClient] = useState(null);
 
   useEffect(() => {
     if (location.state?.openNew) navigate(location.pathname, { replace: true, state: {} });
@@ -82,6 +84,16 @@ export default function ClientsPage() {
     }
   }
 
+  async function handleDelete(client) {
+    if (!window.confirm(`¿Eliminar a "${client.fullName}"? Esta acción no se puede deshacer.`)) return;
+    try {
+      await api.delete(`/clients/${client.id}`);
+      fetchClients();
+    } catch (err) {
+      window.alert(err.response?.data?.error || 'No se pudo eliminar el cliente.');
+    }
+  }
+
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const inputCls = 'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20';
@@ -99,7 +111,7 @@ export default function ClientsPage() {
               onClick={() => { setView('kanban'); setPage(1); }}
               className={`rounded-md px-3 py-1.5 font-medium transition ${view === 'kanban' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}
             >
-              Kanban
+              Tablero
             </button>
             <button
               onClick={() => { setView('table'); setPage(1); }}
@@ -163,17 +175,18 @@ export default function ClientsPage() {
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Estatus</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Agente</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Próximo seguimiento</th>
+                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {clients.map((c) => (
                 <tr key={c.id} className="transition hover:bg-slate-50/70">
-                  <td className="px-5 py-3">
+                  <td className="max-w-[240px] px-5 py-3">
                     <Link to={`/clients/${c.id}`} className="flex items-center gap-3">
-                      <Avatar name={c.fullName} className="h-9 w-9 text-xs" />
-                      <div>
-                        <div className="font-semibold text-slate-900 hover:text-orange-600">{c.fullName}</div>
-                        {c.source && <div className="text-xs text-slate-400">{c.source}</div>}
+                      <Avatar name={c.fullName} className="h-9 w-9 shrink-0 text-xs" />
+                      <div className="min-w-0">
+                        <div className="truncate font-semibold text-slate-900 hover:text-orange-600" title={c.fullName}>{c.fullName}</div>
+                        {c.source && <div className="truncate text-xs text-slate-400">{c.source}</div>}
                       </div>
                     </Link>
                   </td>
@@ -223,11 +236,29 @@ export default function ClientsPage() {
                       </span>
                     ) : <span className="text-slate-300">—</span>}
                   </td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => setNoteClient(c)}
+                        title="Agregar nota"
+                        className="rounded-lg p-2 text-slate-400 transition hover:bg-orange-50 hover:text-orange-600"
+                      >
+                        <Icon name="file" className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(c)}
+                        title="Eliminar cliente"
+                        className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Icon name="trash" className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
                 </tr>
               ))}
               {clients.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center">
+                  <td colSpan={6} className="px-5 py-12 text-center">
                     <Icon name="clients" className="mx-auto h-8 w-8 text-slate-300" strokeWidth={1.5} />
                     <p className="mt-2 text-sm text-slate-400">No hay clientes que coincidan.</p>
                   </td>
@@ -264,6 +295,13 @@ export default function ClientsPage() {
         <ImportClientsModal
           onClose={() => setShowImportModal(false)}
           onImported={() => fetchClients()}
+        />
+      )}
+      {noteClient && (
+        <QuickNoteModal
+          client={noteClient}
+          onClose={() => setNoteClient(null)}
+          onSaved={() => { setNoteClient(null); fetchClients(); }}
         />
       )}
     </div>

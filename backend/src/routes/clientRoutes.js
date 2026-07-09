@@ -1,7 +1,7 @@
 const express = require('express');
 const { z } = require('zod');
 const {
-  listClients, getClient, createClient, updateClient, reassignClient, dailyTasks, overdueTasks, rangeTasks, importClients,
+  listClients, getClient, createClient, updateClient, deleteClient, reassignClient, dailyTasks, overdueTasks, rangeTasks, importClients,
 } = require('../controllers/clientController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { validate } = require('../utils/validate');
@@ -135,9 +135,16 @@ router.get('/tasks/range', rangeTasks);
  *     security: [{ bearerAuth: [] }]
  *     responses:
  *       200: { description: Client updated }
+ *   delete:
+ *     summary: Delete a client (Agent can only delete their own assigned clients)
+ *     tags: [Clients]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       204: { description: Client deleted }
  */
 router.get('/:id', getClient);
 router.patch('/:id', validate(updateSchema), updateClient);
+router.delete('/:id', deleteClient);
 
 /**
  * @openapi
