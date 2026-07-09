@@ -21,4 +21,6 @@ COPY src ./src
 
 EXPOSE 4000
 
-CMD ["sh", "-c", "npx prisma migrate deploy && node src/server.js"]
+# seed.js uses upsert, so it's safe to run on every startup: it creates the
+# default statuses + admin user once and is a no-op afterward.
+CMD ["sh", "-c", "npx prisma migrate deploy && node prisma/seed.js && node src/server.js"]
