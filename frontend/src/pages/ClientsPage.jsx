@@ -166,37 +166,46 @@ export default function ClientsPage() {
       ) : view === 'kanban' ? (
         <KanbanBoard statuses={statuses} clients={clients} onDropClient={handleDropClient} />
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-slate-200 text-sm">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Cliente</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Contacto</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Estatus</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Agente</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Próximo seguimiento</th>
-                <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Acciones</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Cliente</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Contacto</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Estatus</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Agente</th>
+                <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Próximo seguimiento</th>
+                <th className="whitespace-nowrap px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {clients.map((c) => (
+              {clients.map((c) => {
+                const emails = c.email ? c.email.split(',').map((e) => e.trim()).filter(Boolean) : [];
+                return (
                 <tr key={c.id} className="transition hover:bg-slate-50/70">
-                  <td className="max-w-[240px] px-5 py-3">
+                  <td className="px-5 py-3">
                     <Link to={`/clients/${c.id}`} className="flex items-center gap-3">
                       <Avatar name={c.fullName} className="h-9 w-9 shrink-0 text-xs" />
-                      <div className="min-w-0">
-                        <div className="truncate font-semibold text-slate-900 hover:text-orange-600" title={c.fullName}>{c.fullName}</div>
-                        {c.source && <div className="truncate text-xs text-slate-400">{c.source}</div>}
+                      <div>
+                        <div className="font-semibold text-slate-900 hover:text-orange-600">{c.fullName}</div>
+                        {c.source && <div className="text-xs text-slate-400">{c.source}</div>}
                       </div>
                     </Link>
                   </td>
                   <td className="px-5 py-3">
-                    <div className="flex items-center gap-1.5 text-slate-600">
-                      <Icon name="phone" className="h-3.5 w-3.5 text-slate-400" />{c.phone}
+                    <div className="flex items-center gap-1.5 whitespace-nowrap text-slate-600">
+                      <Icon name="phone" className="h-3.5 w-3.5 shrink-0 text-slate-400" />{c.phone}
                     </div>
-                    {c.email && (
-                      <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-400">
-                        <Icon name="mail" className="h-3.5 w-3.5" />{c.email}
+                    {emails.length > 0 && (
+                      <div className="mt-0.5 flex items-center gap-1.5 whitespace-nowrap text-xs text-slate-400" title={emails.join(', ')}>
+                        <Icon name="mail" className="h-3.5 w-3.5 shrink-0" />
+                        <span className="max-w-[160px] truncate">{emails[0]}</span>
+                        {emails.length > 1 && (
+                          <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                            +{emails.length - 1}
+                          </span>
+                        )}
                       </div>
                     )}
                   </td>
@@ -255,7 +264,7 @@ export default function ClientsPage() {
                     </div>
                   </td>
                 </tr>
-              ))}
+              );})}
               {clients.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-5 py-12 text-center">
@@ -266,6 +275,7 @@ export default function ClientsPage() {
               )}
             </tbody>
           </table>
+          </div>
           <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/50 px-5 py-3 text-sm text-slate-600">
             <span>Página {page} de {totalPages}</span>
             <div className="flex gap-1">
