@@ -7,8 +7,21 @@ function scopeFilter(user) {
   return {};
 }
 
+async function findDuplicates(phone, phoneAlt, excludeId) {
+  const phones = [phone, phoneAlt].filter(Boolean);
+  if (phones.length === 0) return [];
+  return prisma.client.findMany({
+    where: {
+      id: excludeId ? { not: excludeId } : undefined,
+      OR: phones.flatMap((p) => [{ phone: p }, { phoneAlt: p }]),
+    },
+    select: { id: true, fullName: true, phone: true, assignedAgent: { select: { fullName: true } } },
+    take: 5,
+  });
+}
+
 async function listClients(req, res) {
-  const { search, statusId, assignedAgentId, page = '1', pageSize = '25' } = req.query;
+  const { search, statusId, assignedAgentId, tag, page = '1', pageSize = '25' } = req.query;
   const where = { ...scopeFilter(req.user) };
 
   if (search) {
@@ -21,6 +34,7 @@ async function listClients(req, res) {
   }
   if (statusId) where.statusId = statusId;
   if (assignedAgentId && req.user.role !== 'AGENT') where.assignedAgentId = assignedAgentId;
+  if (tag) where.tags = { has: tag };
 
   const take = Math.min(parseInt(pageSize, 10) || 25, 100);
   const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * take;
@@ -50,6 +64,7 @@ async function getClient(req, res) {
         include: { user: { select: { id: true, fullName: true } }, resultStatus: true },
         orderBy: { createdAt: 'desc' },
       },
+      auditLogs: { orderBy: { createdAt: 'desc' }, take: 50 },
     },
   });
   if (!client) return res.status(404).json({ error: 'Client not found' });
@@ -57,12 +72,15 @@ async function getClient(req, res) {
 }
 
 async function createClient(req, res) {
-  const { fullName, phone, phoneAlt, email, address, statusId, assignedAgentId, nextFollowUpAt } = req.body;
+  const { fullName, phone, phoneAlt, email, address, statusId, assignedAgentId, source, tags, nextFollowUpAt } = req.body;
   let finalStatusId = statusId;
   if (!finalStatusId) {
     const def = await prisma.status.findFirst({ where: { isDefault: true } });
     finalStatusId = def ? def.id : undefined;
   }
+
+  const duplicates = await findDuplicates(phone, phoneAlt);
+
   const client = await prisma.client.create({
     data: {
       fullName,
@@ -72,11 +90,14 @@ async function createClient(req, res) {
       address,
       statusId: finalStatusId,
       assignedAgentId: assignedAgentId ?? (req.user.role === 'AGENT' ? req.user.sub : undefined),
+      source,
+      tags: tags ?? [],
       nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : undefined,
     },
     include: { status: true, assignedAgent: { select: { id: true, fullName: true } } },
   });
-  res.status(201).json(client);
+
+  res.status(201).json({ ...client, duplicateWarning: duplicates.length > 0 ? duplicates : undefined });
 }
 
 async function updateClient(req, res) {
@@ -84,7 +105,7 @@ async function updateClient(req, res) {
   const existing = await prisma.client.findFirst({ where: { id, ...scopeFilter(req.user) } });
   if (!existing) return res.status(404).json({ error: 'Client not found' });
 
-  const { fullName, phone, phoneAlt, email, address, statusId, nextFollowUpAt } = req.body;
+  const { fullName, phone, phoneAlt, email, address, statusId, source, tags, nextFollowUpAt } = req.body;
   const data = {};
   if (fullName !== undefined) data.fullName = fullName;
   if (phone !== undefined) data.phone = phone;
@@ -92,13 +113,23 @@ async function updateClient(req, res) {
   if (email !== undefined) data.email = email;
   if (address !== undefined) data.address = address;
   if (statusId !== undefined) data.statusId = statusId;
+  if (source !== undefined) data.source = source;
+  if (tags !== undefined) data.tags = tags;
   if (nextFollowUpAt !== undefined) data.nextFollowUpAt = nextFollowUpAt ? new Date(nextFollowUpAt) : null;
 
-  const client = await prisma.client.update({
-    where: { id },
-    data,
-    include: { status: true, assignedAgent: { select: { id: true, fullName: true } } },
-  });
+  const auditEntries = [];
+  if (statusId !== undefined && statusId !== existing.statusId) {
+    auditEntries.push({ clientId: id, userId: req.user.sub, field: 'statusId', oldValue: existing.statusId, newValue: statusId });
+  }
+
+  const [client] = await prisma.$transaction([
+    prisma.client.update({
+      where: { id },
+      data,
+      include: { status: true, assignedAgent: { select: { id: true, fullName: true } } },
+    }),
+    ...auditEntries.map((entry) => prisma.auditLog.create({ data: entry })),
+  ]);
   res.json(client);
 }
 
@@ -116,6 +147,15 @@ async function reassignClient(req, res) {
         fromAgentId: client.assignedAgentId,
         toAgentId: agentId,
         reassignedById: req.user.sub,
+      },
+    }),
+    prisma.auditLog.create({
+      data: {
+        clientId: id,
+        userId: req.user.sub,
+        field: 'assignedAgentId',
+        oldValue: client.assignedAgentId,
+        newValue: agentId,
       },
     }),
   ]);
@@ -141,4 +181,21 @@ async function dailyTasks(req, res) {
   res.json(items);
 }
 
-module.exports = { listClients, getClient, createClient, updateClient, reassignClient, dailyTasks };
+async function overdueTasks(req, res) {
+  const now = new Date();
+  const where = {
+    ...scopeFilter(req.user),
+    nextFollowUpAt: { lt: now },
+  };
+
+  const items = await prisma.client.findMany({
+    where,
+    include: { status: true, assignedAgent: { select: { id: true, fullName: true } } },
+    orderBy: { nextFollowUpAt: 'asc' },
+  });
+  res.json(items);
+}
+
+module.exports = {
+  listClients, getClient, createClient, updateClient, reassignClient, dailyTasks, overdueTasks,
+};

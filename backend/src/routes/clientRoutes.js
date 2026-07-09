@@ -1,7 +1,7 @@
 const express = require('express');
 const { z } = require('zod');
 const {
-  listClients, getClient, createClient, updateClient, reassignClient, dailyTasks,
+  listClients, getClient, createClient, updateClient, reassignClient, dailyTasks, overdueTasks,
 } = require('../controllers/clientController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { validate } = require('../utils/validate');
@@ -19,6 +19,8 @@ const createSchema = z.object({
   address: z.string().optional(),
   statusId: z.string().uuid().optional(),
   assignedAgentId: z.string().uuid().optional(),
+  source: z.string().optional(),
+  tags: z.array(z.string()).optional(),
   nextFollowUpAt: z.string().datetime().optional(),
 });
 
@@ -56,6 +58,18 @@ router.post('/', validate(createSchema), createClient);
  *       200: { description: Today's follow-ups }
  */
 router.get('/tasks/today', dailyTasks);
+
+/**
+ * @openapi
+ * /clients/tasks/overdue:
+ *   get:
+ *     summary: Clients with a follow-up date that has passed and was never logged
+ *     tags: [Clients]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Overdue follow-ups }
+ */
+router.get('/tasks/overdue', overdueTasks);
 
 /**
  * @openapi

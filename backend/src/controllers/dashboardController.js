@@ -3,11 +3,14 @@ const prisma = require('../config/prisma');
 async function summary(req, res) {
   const scope = req.user.role === 'AGENT' ? { assignedAgentId: req.user.sub } : {};
 
-  const [byStatus, byAgent, recentInteractions, totalClients] = await Promise.all([
+  const interactionScope = req.user.role === 'AGENT' ? { userId: req.user.sub } : {};
+
+  const [byStatus, byAgent, byInteractionType, recentInteractions, totalClients] = await Promise.all([
     prisma.client.groupBy({ by: ['statusId'], where: scope, _count: true }),
     prisma.client.groupBy({ by: ['assignedAgentId'], where: scope, _count: true }),
+    prisma.interaction.groupBy({ by: ['type'], where: interactionScope, _count: true }),
     prisma.interaction.findMany({
-      where: req.user.role === 'AGENT' ? { userId: req.user.sub } : {},
+      where: interactionScope,
       orderBy: { createdAt: 'desc' },
       take: 20,
       include: {
@@ -34,6 +37,7 @@ async function summary(req, res) {
       agentName: a.assignedAgentId ? agentMap[a.assignedAgentId] : 'Unassigned',
       count: a._count,
     })),
+    byInteractionType: byInteractionType.map((t) => ({ type: t.type, count: t._count })),
     recentInteractions,
   });
 }
@@ -46,11 +50,12 @@ async function exportClientsCsv(req, res) {
     orderBy: { fullName: 'asc' },
   });
 
-  const header = ['Full Name', 'Phone', 'Alt Phone', 'Email', 'Address', 'Status', 'Assigned Agent', 'Next Follow-up', 'Created At'];
+  const header = ['Full Name', 'Phone', 'Alt Phone', 'Email', 'Address', 'Status', 'Assigned Agent', 'Source', 'Tags', 'Next Follow-up', 'Created At'];
   const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   const rows = clients.map((c) => [
     c.fullName, c.phone, c.phoneAlt, c.email, c.address,
-    c.status?.name, c.assignedAgent?.fullName, c.nextFollowUpAt?.toISOString() ?? '', c.createdAt.toISOString(),
+    c.status?.name, c.assignedAgent?.fullName, c.source, c.tags.join('; '),
+    c.nextFollowUpAt?.toISOString() ?? '', c.createdAt.toISOString(),
   ].map(escape).join(','));
 
   const csv = [header.join(','), ...rows].join('\n');

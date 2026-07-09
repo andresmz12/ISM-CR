@@ -6,6 +6,7 @@ const { validate } = require('../utils/validate');
 const router = express.Router({ mergeParams: true });
 
 const createSchema = z.object({
+  type: z.enum(['CALL', 'EMAIL', 'WHATSAPP', 'SMS', 'VISIT', 'OTHER']).optional(),
   notes: z.string().min(1),
   resultStatusId: z.string().uuid().optional(),
   nextFollowUpAt: z.string().datetime().nullable().optional(),

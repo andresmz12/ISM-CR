@@ -20,14 +20,16 @@ async function listInteractions(req, res) {
 
 async function createInteraction(req, res) {
   const { clientId } = req.params;
-  const { notes, resultStatusId, nextFollowUpAt } = req.body;
+  const { type, notes, resultStatusId, nextFollowUpAt } = req.body;
 
   const client = await prisma.client.findFirst({ where: { id: clientId, ...scopeFilter(req.user) } });
   if (!client) return res.status(404).json({ error: 'Client not found' });
 
+  const statusChanged = resultStatusId && resultStatusId !== client.statusId;
+
   const [interaction] = await prisma.$transaction([
     prisma.interaction.create({
-      data: { clientId, userId: req.user.sub, notes, resultStatusId },
+      data: { clientId, userId: req.user.sub, type, notes, resultStatusId },
       include: { user: { select: { id: true, fullName: true } }, resultStatus: true },
     }),
     prisma.client.update({
@@ -37,6 +39,11 @@ async function createInteraction(req, res) {
         ...(nextFollowUpAt !== undefined ? { nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : null } : {}),
       },
     }),
+    ...(statusChanged
+      ? [prisma.auditLog.create({
+          data: { clientId, userId: req.user.sub, field: 'statusId', oldValue: client.statusId, newValue: resultStatusId },
+        })]
+      : []),
   ]);
 
   res.status(201).json(interaction);

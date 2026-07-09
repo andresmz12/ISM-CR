@@ -35,11 +35,27 @@ con otras apps internas (paquetería, etc.) vía REST.
 - **users**: id, fullName, email, passwordHash, role (ADMIN/SUPERVISOR/AGENT), active
 - **statuses**: id, name, order, isDefault — estatus configurables de cliente
 - **clients**: id, fullName, phone, phoneAlt, email, address, statusId, assignedAgentId,
-  nextFollowUpAt
-- **interactions**: id, clientId, userId, notes, resultStatusId, createdAt — historial
-  completo de contactos
+  source (origen del lead), tags (etiquetas libres), nextFollowUpAt
+- **interactions**: id, clientId, userId, type (CALL/EMAIL/WHATSAPP/SMS/VISIT/OTHER),
+  notes, resultStatusId, createdAt — historial completo de contactos
 - **client_assignments**: historial de reasignaciones de cliente entre agentes
+- **audit_logs**: registro genérico de cambios de campo por cliente (quién, qué campo,
+  valor anterior/nuevo) — por ahora se usa para cambios de estatus
 - **api_keys**: llaves para integraciones externas (paquetería, etc.), separadas del login
+
+### Detalles de diseño (inspirados en CRMs grandes como HubSpot/Pipedrive)
+
+- **Detección de duplicados**: al crear un cliente se busca coincidencia de teléfono/teléfono
+  alterno contra la base existente; si hay coincidencia se devuelve una advertencia
+  (`duplicateWarning`) sin bloquear la creación — con 30+ agentes capturando en paralelo,
+  bloquear generaría fricción, así que se avisa y el agente decide.
+- **Actividades tipadas**: cada interacción tiene un `type` para poder reportar volumen de
+  llamadas vs. emails vs. whatsapp por agente.
+- **Auditoría de estatus**: todo cambio de estatus de un cliente (ya sea editado directamente
+  o resultado de una interacción) queda en `audit_logs` con quién lo hizo y cuándo.
+- **Tareas vencidas**: además de "tareas de hoy" (`/clients/tasks/today`), existe
+  `/clients/tasks/overdue` para detectar seguimientos que ya pasaron su fecha y nadie
+  atendió — la base para futuras alertas/notificaciones.
 
 ## Roles
 
