@@ -2,11 +2,21 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../api/client';
 import Icon, { Avatar } from '../components/Icon';
+import TrendChart from '../components/TrendChart';
 
 const TYPE_LABELS = { CALL: 'Llamada', EMAIL: 'Email', WHATSAPP: 'WhatsApp', SMS: 'SMS', VISIT: 'Visita', OTHER: 'Otro' };
 const TYPE_ICONS = { CALL: 'phone', EMAIL: 'mail', WHATSAPP: 'phone', SMS: 'mail', VISIT: 'clients', OTHER: 'activity' };
-
 const BAR_COLORS = ['bg-orange-500', 'bg-violet-500', 'bg-sky-500', 'bg-teal-500', 'bg-emerald-500', 'bg-amber-500', 'bg-rose-500'];
+
+function formatAmount(amount) {
+  if (amount == null) return '—';
+  return `$${amount.toLocaleString('es-CR', { maximumFractionDigits: 0 })}`;
+}
+
+function formatPercent(value) {
+  if (value == null) return '—';
+  return `${Math.round(value * 100)}%`;
+}
 
 function BarList({ items, emptyText }) {
   const max = Math.max(1, ...items.map((i) => i.count));
@@ -49,18 +59,21 @@ function StatCard({ icon, label, value, accent, sub }) {
 }
 
 export default function DashboardPage() {
-  const [data, setData] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [report, setReport] = useState(null);
   const [tasks, setTasks] = useState({ today: 0, overdue: 0 });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.get('/dashboard/summary'),
+      api.get('/reports/overview'),
       api.get('/clients/tasks/today').catch(() => ({ data: [] })),
       api.get('/clients/tasks/overdue').catch(() => ({ data: [] })),
     ])
-      .then(([summary, today, overdue]) => {
-        setData(summary.data);
+      .then(([summaryRes, reportRes, today, overdue]) => {
+        setSummary(summaryRes.data);
+        setReport(reportRes.data);
         setTasks({ today: today.data.length, overdue: overdue.data.length });
       })
       .finally(() => setLoading(false));
@@ -84,9 +97,9 @@ export default function DashboardPage() {
       </div>
     );
   }
-  if (!data) return <p className="text-slate-500">No se pudo cargar el dashboard.</p>;
+  if (!summary || !report) return <p className="text-slate-500">No se pudo cargar el dashboard.</p>;
 
-  const totalInteractions = data.byInteractionType.reduce((acc, t) => acc + t.count, 0);
+  const sortedAgents = [...report.agentPerformance].sort((a, b) => b.dealsWonValue - a.dealsWonValue);
 
   return (
     <div className="space-y-6">
@@ -105,32 +118,27 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard icon="clients" label="Total de clientes" value={data.totalClients} accent="bg-orange-50 text-orange-600" />
-        <StatCard icon="activity" label="Interacciones" value={totalInteractions} accent="bg-violet-50 text-violet-600" />
+        <StatCard icon="clients" label="Total de clientes" value={summary.totalClients} accent="bg-orange-50 text-orange-600" />
+        <StatCard icon="briefcase" label="Pipeline abierto" value={formatAmount(report.pipelineValue)} accent="bg-amber-50 text-amber-600" />
         <StatCard icon="calendar" label="Seguimientos hoy" value={tasks.today} accent="bg-sky-50 text-sky-600" />
         <StatCard icon="clock" label="Seguimientos vencidos" value={tasks.overdue} accent="bg-rose-50 text-rose-600" sub={tasks.overdue > 0 ? 'Requieren atención' : 'Todo al día'} />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard icon="trendingUp" label="Tasa de cierre" value={formatPercent(report.winRate)} accent="bg-emerald-50 text-emerald-600" sub={`${report.wonCount} ganados · ${report.lostCount} perdidos`} />
+        <StatCard icon="chart" label="Ticket promedio" value={formatAmount(report.avgDealSize)} accent="bg-violet-50 text-violet-600" sub="Negocios ganados" />
+        <StatCard icon="activity" label="Interacciones (30 días)" value={report.interactionTrend.reduce((acc, d) => acc + d.count, 0)} accent="bg-teal-50 text-teal-600" />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center gap-2">
             <Icon name="chart" className="h-4 w-4 text-slate-400" />
             <h2 className="text-sm font-semibold text-slate-900">Pipeline por estatus</h2>
           </div>
           <BarList
-            items={data.byStatus.map((s) => ({ key: s.statusId, label: s.statusName ?? '—', count: s.count }))}
+            items={summary.byStatus.map((s) => ({ key: s.statusId, label: s.statusName ?? '—', count: s.count }))}
             emptyText="Sin clientes todavía."
-          />
-        </div>
-
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2">
-            <Icon name="users" className="h-4 w-4 text-slate-400" />
-            <h2 className="text-sm font-semibold text-slate-900">Clientes por agente</h2>
-          </div>
-          <BarList
-            items={data.byAgent.map((a) => ({ key: a.agentId ?? 'unassigned', label: a.agentName, count: a.count }))}
-            emptyText="Sin clientes asignados."
           />
         </div>
 
@@ -140,10 +148,54 @@ export default function DashboardPage() {
             <h2 className="text-sm font-semibold text-slate-900">Actividad por tipo</h2>
           </div>
           <BarList
-            items={data.byInteractionType.map((t) => ({ key: t.type, label: TYPE_LABELS[t.type] ?? t.type, count: t.count }))}
+            items={summary.byInteractionType.map((t) => ({ key: t.type, label: TYPE_LABELS[t.type] ?? t.type, count: t.count }))}
             emptyText="Sin interacciones registradas."
           />
         </div>
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <Icon name="activity" className="h-4 w-4 text-slate-400" />
+          <h2 className="text-sm font-semibold text-slate-900">Actividad de los últimos 30 días</h2>
+        </div>
+        <TrendChart data={report.interactionTrend} />
+      </div>
+
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="border-b border-slate-100 px-5 py-4">
+          <h2 className="text-sm font-semibold text-slate-900">Desempeño por agente</h2>
+        </div>
+        <table className="min-w-full divide-y divide-slate-100 text-sm">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Agente</th>
+              <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Clientes</th>
+              <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Negocios</th>
+              <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Ganados</th>
+              <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Valor ganado</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {sortedAgents.map((a) => (
+              <tr key={a.agentId}>
+                <td className="px-5 py-3">
+                  <div className="flex items-center gap-2.5">
+                    <Avatar name={a.agentName} className="h-7 w-7 text-[10px]" />
+                    <span className="font-medium text-slate-900">{a.agentName}</span>
+                  </div>
+                </td>
+                <td className="px-5 py-3 text-slate-600">{a.clients}</td>
+                <td className="px-5 py-3 text-slate-600">{a.dealsTotal}</td>
+                <td className="px-5 py-3 text-slate-600">{a.dealsWon}</td>
+                <td className="px-5 py-3 font-medium text-orange-600">{formatAmount(a.dealsWonValue)}</td>
+              </tr>
+            ))}
+            {sortedAgents.length === 0 && (
+              <tr><td colSpan={5} className="px-5 py-8 text-center text-slate-400">Sin datos de agentes.</td></tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -151,7 +203,7 @@ export default function DashboardPage() {
           <h2 className="text-sm font-semibold text-slate-900">Actividad reciente</h2>
         </div>
         <div className="divide-y divide-slate-100 px-5">
-          {data.recentInteractions.map((i) => (
+          {summary.recentInteractions.map((i) => (
             <div key={i.id} className="flex items-center gap-4 py-3.5">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500">
                 <Icon name={TYPE_ICONS[i.type] ?? 'activity'} className="h-4 w-4" strokeWidth={1.8} />
@@ -176,7 +228,7 @@ export default function DashboardPage() {
               </div>
             </div>
           ))}
-          {data.recentInteractions.length === 0 && (
+          {summary.recentInteractions.length === 0 && (
             <p className="py-6 text-sm text-slate-400">Sin actividad todavía.</p>
           )}
         </div>

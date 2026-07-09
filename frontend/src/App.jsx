@@ -6,12 +6,10 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ClientsPage from './pages/ClientsPage';
 import ClientDetailPage from './pages/ClientDetailPage';
-import TasksPage from './pages/TasksPage';
+import AgendaPage from './pages/AgendaPage';
 import DealsPage from './pages/DealsPage';
 import CompaniesPage from './pages/CompaniesPage';
 import CompanyDetailPage from './pages/CompanyDetailPage';
-import ReportsPage from './pages/ReportsPage';
-import CalendarPage from './pages/CalendarPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import AdminUsersPage from './pages/AdminUsersPage';
@@ -29,12 +27,10 @@ export default function App() {
               <Route path="/" element={<DashboardPage />} />
               <Route path="/clients" element={<ClientsPage />} />
               <Route path="/clients/:id" element={<ClientDetailPage />} />
-              <Route path="/tasks" element={<TasksPage />} />
+              <Route path="/agenda" element={<AgendaPage />} />
               <Route path="/deals" element={<DealsPage />} />
               <Route path="/companies" element={<CompaniesPage />} />
               <Route path="/companies/:id" element={<CompanyDetailPage />} />
-              <Route path="/reports" element={<ReportsPage />} />
-              <Route path="/calendar" element={<CalendarPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:id" element={<ProjectDetailPage />} />
 

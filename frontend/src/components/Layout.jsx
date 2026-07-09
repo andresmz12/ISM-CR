@@ -8,7 +8,6 @@ const navSections = [
     title: 'General',
     items: [
       { to: '/', label: 'Dashboard', icon: 'dashboard', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
-      { to: '/calendar', label: 'Calendario', icon: 'calendar', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
     ],
   },
   {
@@ -22,19 +21,13 @@ const navSections = [
   {
     title: 'Actividad',
     items: [
-      { to: '/tasks', label: 'Tareas', icon: 'tasks', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
+      { to: '/agenda', label: 'Agenda', icon: 'tasks', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
     ],
   },
   {
     title: 'Proyectos',
     items: [
       { to: '/projects', label: 'Proyectos', icon: 'folder', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
-    ],
-  },
-  {
-    title: 'Reportes',
-    items: [
-      { to: '/reports', label: 'Reportes', icon: 'trendingUp', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
     ],
   },
   {
