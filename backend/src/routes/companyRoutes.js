@@ -31,14 +31,14 @@ const updateSchema = createSchema.partial();
  *     responses:
  *       200: { description: List of companies }
  *   post:
- *     summary: Create a company
+ *     summary: Create a company (Admin/Supervisor only)
  *     tags: [Companies]
  *     security: [{ bearerAuth: [] }]
  *     responses:
  *       201: { description: Company created }
  */
 router.get('/', listCompanies);
-router.post('/', validate(createSchema), createCompany);
+router.post('/', requireRole('ADMIN', 'SUPERVISOR'), validate(createSchema), createCompany);
 
 /**
  * @openapi
@@ -50,7 +50,7 @@ router.post('/', validate(createSchema), createCompany);
  *     responses:
  *       200: { description: Company detail }
  *   patch:
- *     summary: Update a company
+ *     summary: Update a company (Admin/Supervisor only)
  *     tags: [Companies]
  *     security: [{ bearerAuth: [] }]
  *     responses:
@@ -63,7 +63,7 @@ router.post('/', validate(createSchema), createCompany);
  *       204: { description: Company deleted }
  */
 router.get('/:id', getCompany);
-router.patch('/:id', validate(updateSchema), updateCompany);
+router.patch('/:id', requireRole('ADMIN', 'SUPERVISOR'), validate(updateSchema), updateCompany);
 router.delete('/:id', requireRole('ADMIN', 'SUPERVISOR'), deleteCompany);
 
 module.exports = router;

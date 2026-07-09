@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import NewCompanyModal from '../components/NewCompanyModal';
 import Icon from '../components/Icon';
 
 export default function CompaniesPage() {
+  const { user } = useAuth();
+  const canManage = user.role === 'ADMIN' || user.role === 'SUPERVISOR';
   const location = useLocation();
   const navigate = useNavigate();
   const [companies, setCompanies] = useState([]);
@@ -33,13 +36,15 @@ export default function CompaniesPage() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Empresas</h1>
           <p className="mt-0.5 text-sm text-slate-500">{companies.length} empresas registradas</p>
         </div>
-        <button
-          onClick={() => setShowModal(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-orange-600/25 transition hover:bg-orange-700"
-        >
-          <Icon name="plus" className="h-4 w-4" />
-          Nueva empresa
-        </button>
+        {canManage && (
+          <button
+            onClick={() => setShowModal(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-orange-600/25 transition hover:bg-orange-700"
+          >
+            <Icon name="plus" className="h-4 w-4" />
+            Nueva empresa
+          </button>
+        )}
       </div>
 
       <div className="relative w-72">

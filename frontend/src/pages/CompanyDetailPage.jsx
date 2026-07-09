@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
 import StatusBadge from '../components/StatusBadge';
 import Icon, { Avatar } from '../components/Icon';
 
@@ -16,6 +17,8 @@ function formatAmount(amount) {
 
 export default function CompanyDetailPage() {
   const { id } = useParams();
+  const { user } = useAuth();
+  const canManage = user.role === 'ADMIN' || user.role === 'SUPERVISOR';
   const navigate = useNavigate();
   const [company, setCompany] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -123,10 +126,12 @@ export default function CompanyDetailPage() {
                 {company.notes && <p className="mt-2 text-sm text-slate-500">{company.notes}</p>}
               </div>
             </div>
-            <div className="flex gap-2">
-              <button onClick={startEditing} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Editar</button>
-              <button onClick={handleDelete} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Eliminar</button>
-            </div>
+            {canManage && (
+              <div className="flex gap-2">
+                <button onClick={startEditing} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50">Editar</button>
+                <button onClick={handleDelete} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50">Eliminar</button>
+              </div>
+            )}
           </div>
         )}
       </div>

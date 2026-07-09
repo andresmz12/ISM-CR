@@ -49,9 +49,9 @@ const navSections = [
 const ROLE_LABELS = { ADMIN: 'Administrador', SUPERVISOR: 'Supervisor', AGENT: 'Agente' };
 
 const QUICK_CREATE = [
-  { label: 'Nuevo cliente', to: '/clients', icon: 'clients' },
-  { label: 'Nuevo negocio', to: '/deals', icon: 'briefcase' },
-  { label: 'Nueva empresa', to: '/companies', icon: 'building' },
+  { label: 'Nuevo cliente', to: '/clients', icon: 'clients', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
+  { label: 'Nuevo negocio', to: '/deals', icon: 'briefcase', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
+  { label: 'Nueva empresa', to: '/companies', icon: 'building', roles: ['ADMIN', 'SUPERVISOR'] },
 ];
 
 function currentSectionLabel(pathname) {
@@ -62,9 +62,11 @@ function currentSectionLabel(pathname) {
   return 'ISM CRM';
 }
 
-function QuickCreateMenu() {
+function QuickCreateMenu({ role }) {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const items = QUICK_CREATE.filter((item) => item.roles.includes(role));
+  if (items.length === 0) return null;
 
   return (
     <div className="relative">
@@ -78,7 +80,7 @@ function QuickCreateMenu() {
       </button>
       {open && (
         <div className="absolute right-0 z-20 mt-2 w-48 overflow-hidden rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-          {QUICK_CREATE.map((item) => (
+          {items.map((item) => (
             <button
               key={item.to}
               onMouseDown={(e) => e.preventDefault()}
@@ -101,14 +103,14 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen bg-slate-100 text-slate-900">
-      <aside className="flex w-60 shrink-0 flex-col bg-slate-900">
+      <aside className="flex w-60 shrink-0 flex-col bg-orange-900">
         <div className="flex items-center gap-3 px-5 py-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-sm font-bold text-white shadow-lg shadow-orange-500/30">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sm font-bold text-orange-700 shadow-lg shadow-black/10">
             ISM
           </span>
           <div>
             <div className="text-sm font-semibold text-white">ISM CRM</div>
-            <div className="text-[11px] text-slate-400">Gestión de clientes</div>
+            <div className="text-[11px] text-orange-200/70">Gestión de clientes</div>
           </div>
         </div>
 
@@ -119,7 +121,7 @@ export default function Layout() {
             return (
               <div key={si}>
                 {section.title && (
-                  <div className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                  <div className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-orange-200/60">
                     {section.title}
                   </div>
                 )}
@@ -132,8 +134,8 @@ export default function Layout() {
                       className={({ isActive }) =>
                         `group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
                           isActive
-                            ? 'bg-orange-500/15 text-white shadow-[inset_2px_0_0_0_#fb923c]'
-                            : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                            ? 'bg-black/20 text-white shadow-[inset_2px_0_0_0_#ffffff]'
+                            : 'text-orange-100/70 hover:bg-black/10 hover:text-white'
                         }`
                       }
                     >
@@ -147,17 +149,17 @@ export default function Layout() {
           })}
         </nav>
 
-        <div className="border-t border-white/10 p-3">
+        <div className="border-t border-white/15 p-3">
           <div className="flex items-center gap-3 rounded-lg px-2 py-2">
             <Avatar name={user?.fullName} className="h-9 w-9 text-xs" />
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium text-white">{user?.fullName}</div>
-              <div className="text-[11px] text-slate-400">{ROLE_LABELS[user?.role] ?? user?.role}</div>
+              <div className="text-[11px] text-orange-200/70">{ROLE_LABELS[user?.role] ?? user?.role}</div>
             </div>
             <button
               onClick={logout}
               title="Cerrar sesión"
-              className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
+              className="rounded-lg p-2 text-orange-200/70 transition hover:bg-black/10 hover:text-white"
             >
               <Icon name="logout" className="h-[18px] w-[18px]" strokeWidth={1.8} />
             </button>
@@ -172,7 +174,7 @@ export default function Layout() {
             <Icon name="chevronRight" className="h-3.5 w-3.5 text-slate-300" />
             <span className="font-medium text-slate-900">{currentSectionLabel(location.pathname)}</span>
           </div>
-          <QuickCreateMenu />
+          <QuickCreateMenu role={user?.role} />
         </header>
 
         <main className="flex-1 overflow-y-auto">
