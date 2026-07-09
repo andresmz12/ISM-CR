@@ -1,0 +1,109 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SUPERVISOR
+  AGENT
+}
+
+model User {
+  id           String   @id @default(uuid())
+  fullName     String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(AGENT)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignedClients Client[]       @relation("AssignedAgent")
+  interactions    Interaction[]
+  reassignedFrom  ClientAssignment[] @relation("ReassignedBy")
+
+  @@map("users")
+}
+
+model Status {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  order     Int      @default(0)
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  clients      Client[]
+  interactions Interaction[]
+
+  @@map("statuses")
+}
+
+model Client {
+  id                  String    @id @default(uuid())
+  fullName            String
+  phone               String
+  phoneAlt            String?
+  email                String?
+  address              String?
+  statusId             String
+  status                Status    @relation(fields: [statusId], references: [id])
+  assignedAgentId       String?
+  assignedAgent         User?     @relation("AssignedAgent", fields: [assignedAgentId], references: [id])
+  nextFollowUpAt        DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  interactions   Interaction[]
+  assignments    ClientAssignment[]
+
+  @@index([statusId])
+  @@index([assignedAgentId])
+  @@index([phone])
+  @@map("clients")
+}
+
+model Interaction {
+  id           String   @id @default(uuid())
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  notes        String
+  resultStatusId String?
+  resultStatus Status?  @relation(fields: [resultStatusId], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([clientId])
+  @@index([userId])
+  @@map("interactions")
+}
+
+model ClientAssignment {
+  id            String   @id @default(uuid())
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  fromAgentId   String?
+  toAgentId     String
+  reassignedById String
+  reassignedBy  User     @relation("ReassignedBy", fields: [reassignedById], references: [id])
+  createdAt     DateTime @default(now())
+
+  @@index([clientId])
+  @@map("client_assignments")
+}
+
+model ApiKey {
+  id        String   @id @default(uuid())
+  name      String
+  keyHash   String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  lastUsedAt DateTime?
+
+  @@map("api_keys")
+}
