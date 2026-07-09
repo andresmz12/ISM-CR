@@ -7,8 +7,9 @@ con otras apps internas (paquetería, etc.) vía REST.
 ## Estado del proyecto
 
 **Fase 1 (completada):** Backend + base de datos + autenticación + API core.
-**Fase 2 (pendiente):** Frontend React + Tailwind.
-**Fase 3 (pendiente):** Despliegue en Railway.
+**Fase 2 (completada):** Frontend React + Tailwind.
+**Fase 3 (en curso):** Despliegue en Railway — backend ya desplegado y verificado
+(`/api/health` responde `{"status":"ok"}`); falta desplegar el frontend como segundo servicio.
 
 ## Estructura de carpetas
 
@@ -27,7 +28,15 @@ con otras apps internas (paquetería, etc.) vía REST.
     server.js
   Dockerfile
   railway.json
-/frontend                 # (fase 2)
+/frontend
+  /src
+    /api        # cliente axios con JWT automático
+    /context     # AuthContext (login/logout/sesión)
+    /components   # Layout, Kanban, modales, badges
+    /pages          # Login, Dashboard, Clientes, Detalle, Tareas, Admin
+  Dockerfile      # build de Vite + nginx (SPA)
+  nginx.conf.template
+  railway.json
 ```
 
 ## Esquema de base de datos (resumen)
@@ -100,6 +109,26 @@ curl -X POST http://localhost:4000/api/clients \
   -d '{"fullName":"Juan Pérez","phone":"5551234567"}'
 ```
 
+### Frontend
+
+1. Con el backend corriendo (ver arriba), en otra terminal:
+   ```bash
+   cd frontend
+   npm install
+   cp .env.example .env   # ajusta VITE_API_URL si el backend no está en localhost:4000
+   npm run dev
+   ```
+2. Abre `http://localhost:5173`, inicia sesión con el usuario del seed
+   (`admin@ism.local` / `ChangeMe123!`).
+3. Pantallas disponibles: Dashboard, Clientes (vista Kanban por estatus con
+   arrastrar-y-soltar, y vista de Tabla con búsqueda/filtros/paginación), Detalle de
+   cliente (registrar interacción + historial), Tareas (seguimientos de hoy y
+   vencidos), y para Admin: gestión de Usuarios y de Estatus.
+
+Verificado de punta a punta con Playwright: login, creación de cliente con detección
+de duplicados, registro de interacción que cambia el estatus del cliente en el
+Kanban, y reflejo inmediato en el dashboard — sin errores de consola.
+
 ## Integraciones externas
 
 Los endpoints `/api/integrations/*` usan autenticación por API key (header `x-api-key`),
@@ -108,9 +137,23 @@ consultar o actualizar el estatus de un cliente. Las API keys se gestionan direc
 en la tabla `api_keys` (hash SHA-256 + `API_KEY_SALT`); un endpoint de administración de
 keys se añadirá si se requiere gestión desde la UI.
 
+## Despliegue en Railway
+
+El proyecto se despliega como 3 servicios dentro del mismo proyecto de Railway:
+
+1. **Postgres**: servicio de base de datos (Add → Database → PostgreSQL).
+2. **backend**: Root Directory = `backend`. Variables: `DATABASE_URL` (referenciando
+   `${{Postgres.DATABASE_URL}}`), `JWT_SECRET`, `CORS_ORIGIN` (URL pública del frontend),
+   `API_KEY_SALT`.
+3. **frontend**: Root Directory = `frontend`. Variable de build: `VITE_API_URL`
+   (URL pública del backend + `/api`, ej. `https://ism-cr-production.up.railway.app/api`).
+   Railway inyecta `PORT` automáticamente y el `nginx.conf.template` lo usa para escuchar
+   en el puerto correcto.
+
+Cada servicio detecta su `Dockerfile` una vez configurado el Root Directory correspondiente.
+
 ## Próximos pasos
 
-1. Confirmar el esquema anterior y ajustar si falta algo.
-2. Construir el frontend (React + Tailwind): login, listado/detalle de clientes,
-   bandeja de tareas del día, dashboard, panel de administración de usuarios/estatus.
-3. Preparar despliegue en Railway (3 servicios: Postgres, backend, frontend).
+1. Terminar de configurar y verificar el servicio de frontend en Railway.
+2. Ajustar `CORS_ORIGIN` del backend a la URL final del frontend.
+3. (Opcional) Endpoint de administración de API keys desde la UI, para no depender de SQL directo.
