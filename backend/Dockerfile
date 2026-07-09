@@ -1,6 +1,11 @@
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
+
+# Prisma's schema/query engines need OpenSSL; the -slim (Debian) base has apt
+# available for this. Alpine's musl libc caused "Could not parse schema
+# engine response" failures at runtime, so we avoid it here.
+RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
 RUN npm install --omit=dev
