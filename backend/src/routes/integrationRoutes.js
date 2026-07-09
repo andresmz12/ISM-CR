@@ -46,7 +46,14 @@ router.post('/clients/:id/status', validate(statusUpdateSchema), asyncHandler(as
   if (!client) return res.status(404).json({ error: 'Client not found' });
 
   const statusChanged = statusId !== client.statusId;
-  const systemUser = note ? await prisma.user.findFirst({ where: { role: 'ADMIN' } }) : null;
+  // Las notas de integraciones se atribuyen al usuario "Sistema" (creado por el
+  // seed) para no inflar la actividad de un admin real; fallback al primer admin
+  // por si el seed aún no corrió con esta versión.
+  const systemEmail = process.env.SYSTEM_USER_EMAIL || 'sistema@ism.local';
+  const systemUser = note
+    ? (await prisma.user.findUnique({ where: { email: systemEmail } }))
+      ?? (await prisma.user.findFirst({ where: { role: 'ADMIN' } }))
+    : null;
 
   const [updated] = await prisma.$transaction([
     prisma.client.update({ where: { id }, data: { statusId } }),

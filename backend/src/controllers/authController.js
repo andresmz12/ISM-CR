@@ -3,14 +3,15 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
 
+// Hash de relleno: cuando el email no existe se compara contra esto igual,
+// para que el tiempo de respuesta no revele qué correos están registrados.
+const DUMMY_HASH = bcrypt.hashSync('timing-equalizer-placeholder', 10);
+
 async function login(req, res) {
   const { email, password } = req.body;
   const user = await prisma.user.findUnique({ where: { email } });
-  if (!user || !user.active) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-  const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) {
+  const valid = await bcrypt.compare(password, user?.passwordHash ?? DUMMY_HASH);
+  if (!user || !user.active || !valid) {
     return res.status(401).json({ error: 'Invalid credentials' });
   }
   const token = jwt.sign(

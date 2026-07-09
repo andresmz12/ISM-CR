@@ -82,6 +82,10 @@ model Client {
   fullName        String
   phone           String
   phoneAlt        String?
+  // Solo dígitos, para detección de duplicados independiente del formato
+  // ("8888-1234" y "88881234" deben coincidir). Se mantienen desde el backend.
+  phoneNormalized    String?
+  phoneAltNormalized String?
   email           String?
   address         String?
   statusId        String
@@ -104,6 +108,8 @@ model Client {
   @@index([statusId])
   @@index([assignedAgentId])
   @@index([phone])
+  @@index([phoneNormalized])
+  @@index([phoneAltNormalized])
   @@index([companyId])
   @@map("clients")
 }

@@ -24,6 +24,31 @@ async function createUser(req, res) {
 async function updateUser(req, res) {
   const { id } = req.params;
   const { fullName, role, active, password } = req.body;
+
+  const target = await prisma.user.findUnique({ where: { id } });
+  if (!target) return res.status(404).json({ error: 'User not found' });
+
+  if (id === req.user.sub) {
+    if (active === false) {
+      return res.status(400).json({ error: 'No puedes desactivar tu propia cuenta' });
+    }
+    if (role !== undefined && role !== 'ADMIN') {
+      return res.status(400).json({ error: 'No puedes quitarte a ti mismo el rol de administrador' });
+    }
+  }
+
+  // Evita dejar el sistema sin ningún administrador activo.
+  const losesAdmin = target.role === 'ADMIN' && target.active
+    && ((role !== undefined && role !== 'ADMIN') || active === false);
+  if (losesAdmin) {
+    const otherAdmins = await prisma.user.count({
+      where: { role: 'ADMIN', active: true, id: { not: id } },
+    });
+    if (otherAdmins === 0) {
+      return res.status(400).json({ error: 'Debe quedar al menos un administrador activo' });
+    }
+  }
+
   const data = {};
   if (fullName !== undefined) data.fullName = fullName;
   if (role !== undefined) data.role = role;

@@ -1,5 +1,6 @@
 require('dotenv').config();
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
@@ -27,6 +28,22 @@ async function main() {
     where: { email: adminEmail },
     update: {},
     create: { fullName: 'Administrador', email: adminEmail, passwordHash, role: 'ADMIN' },
+  });
+
+  // Usuario "Sistema" para atribuir las interacciones creadas por integraciones
+  // externas (paquetería, etc.) sin contaminar las métricas de los agentes reales.
+  // Inactivo y con contraseña aleatoria: no puede iniciar sesión.
+  const systemEmail = process.env.SYSTEM_USER_EMAIL || 'sistema@ism.local';
+  await prisma.user.upsert({
+    where: { email: systemEmail },
+    update: {},
+    create: {
+      fullName: 'Sistema (integraciones)',
+      email: systemEmail,
+      passwordHash: await bcrypt.hash(crypto.randomBytes(32).toString('hex'), 10),
+      role: 'AGENT',
+      active: false,
+    },
   });
 
   // No imprimir la contraseña: este script corre en cada arranque y quedaría en los logs.

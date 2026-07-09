@@ -18,6 +18,14 @@ async function createStatus(req, res) {
 async function updateStatus(req, res) {
   const { id } = req.params;
   const { name, order, isDefault } = req.body;
+  // Sin estatus por defecto, la creación e importación de clientes fallan:
+  // para cambiarlo hay que marcar otro como default, no desmarcar este.
+  if (isDefault === false) {
+    const current = await prisma.status.findUnique({ where: { id } });
+    if (current?.isDefault) {
+      return res.status(400).json({ error: 'Debe existir un estatus por defecto: marca otro estatus como default en su lugar' });
+    }
+  }
   if (isDefault) {
     await prisma.status.updateMany({ where: { isDefault: true }, data: { isDefault: false } });
   }
@@ -31,6 +39,11 @@ async function updateStatus(req, res) {
 
 async function deleteStatus(req, res) {
   const { id } = req.params;
+  const status = await prisma.status.findUnique({ where: { id } });
+  if (!status) return res.status(404).json({ error: 'Status not found' });
+  if (status.isDefault) {
+    return res.status(400).json({ error: 'No se puede eliminar el estatus por defecto: marca otro como default primero' });
+  }
   await prisma.status.delete({ where: { id } });
   res.status(204).send();
 }

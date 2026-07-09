@@ -7,6 +7,26 @@ function normalizePhone(p) {
   return String(p ?? '').replace(/\D/g, '');
 }
 
+// Igual que normalizePhone pero devuelve null para vacíos, que es lo que
+// se guarda en las columnas phoneNormalized/phoneAltNormalized.
+function normalizePhoneOrNull(p) {
+  const n = normalizePhone(p);
+  return n || null;
+}
+
+// Límites del día en la zona horaria del negocio. El servidor corre en UTC
+// (Railway); sin este ajuste "hoy" empezaría a las 6pm del día anterior en
+// Costa Rica. UTC-6 fijo (CR no tiene horario de verano), configurable por env.
+const TZ_OFFSET_MINUTES = parseInt(process.env.TZ_OFFSET_MINUTES ?? '-360', 10);
+
+function businessDayBounds(now = new Date()) {
+  const local = new Date(now.getTime() + TZ_OFFSET_MINUTES * 60000);
+  local.setUTCHours(0, 0, 0, 0);
+  const start = new Date(local.getTime() - TZ_OFFSET_MINUTES * 60000);
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
+  return { start, end };
+}
+
 function scopeFilter(user) {
   if (user.role === 'AGENT') {
     return { assignedAgentId: user.sub };
@@ -15,12 +35,14 @@ function scopeFilter(user) {
 }
 
 async function findDuplicates(phone, phoneAlt, excludeId) {
-  const phones = [phone, phoneAlt].filter(Boolean);
+  // Compara sobre las columnas normalizadas para que "8888-1234" y "88881234"
+  // cuenten como el mismo número sin importar cómo se capturaron.
+  const phones = [normalizePhoneOrNull(phone), normalizePhoneOrNull(phoneAlt)].filter(Boolean);
   if (phones.length === 0) return [];
   return prisma.client.findMany({
     where: {
       id: excludeId ? { not: excludeId } : undefined,
-      OR: phones.flatMap((p) => [{ phone: p }, { phoneAlt: p }]),
+      OR: phones.flatMap((p) => [{ phoneNormalized: p }, { phoneAltNormalized: p }]),
     },
     select: { id: true, fullName: true, phone: true, assignedAgent: { select: { fullName: true } } },
     take: 5,
@@ -105,6 +127,8 @@ async function createClient(req, res) {
       fullName,
       phone,
       phoneAlt,
+      phoneNormalized: normalizePhoneOrNull(phone),
+      phoneAltNormalized: normalizePhoneOrNull(phoneAlt),
       email,
       address,
       statusId: finalStatusId,
@@ -128,8 +152,14 @@ async function updateClient(req, res) {
   const { fullName, phone, phoneAlt, email, address, statusId, companyId, source, tags, nextFollowUpAt } = req.body;
   const data = {};
   if (fullName !== undefined) data.fullName = fullName;
-  if (phone !== undefined) data.phone = phone;
-  if (phoneAlt !== undefined) data.phoneAlt = phoneAlt;
+  if (phone !== undefined) {
+    data.phone = phone;
+    data.phoneNormalized = normalizePhoneOrNull(phone);
+  }
+  if (phoneAlt !== undefined) {
+    data.phoneAlt = phoneAlt;
+    data.phoneAltNormalized = normalizePhoneOrNull(phoneAlt);
+  }
   if (email !== undefined) data.email = email;
   if (address !== undefined) data.address = address;
   if (statusId !== undefined) data.statusId = statusId;
@@ -143,6 +173,12 @@ async function updateClient(req, res) {
     auditEntries.push({ clientId: id, userId: req.user.sub, field: 'statusId', oldValue: existing.statusId, newValue: statusId });
   }
 
+  // Si cambió algún teléfono, avisar (sin bloquear) si ahora coincide con otro cliente.
+  const phonesChanged = phone !== undefined || phoneAlt !== undefined;
+  const duplicates = phonesChanged
+    ? await findDuplicates(phone ?? existing.phone, phoneAlt ?? existing.phoneAlt, id)
+    : [];
+
   const [client] = await prisma.$transaction([
     prisma.client.update({
       where: { id },
@@ -151,7 +187,7 @@ async function updateClient(req, res) {
     }),
     ...auditEntries.map((entry) => prisma.auditLog.create({ data: entry })),
   ]);
-  res.json(client);
+  res.json({ ...client, duplicateWarning: duplicates.length > 0 ? duplicates : undefined });
 }
 
 async function deleteClient(req, res) {
@@ -192,10 +228,7 @@ async function reassignClient(req, res) {
 }
 
 async function dailyTasks(req, res) {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
+  const { start, end } = businessDayBounds();
 
   const where = {
     ...scopeFilter(req.user),
@@ -226,10 +259,12 @@ async function rangeTasks(req, res) {
 }
 
 async function overdueTasks(req, res) {
-  const now = new Date();
+  // Vencidas = antes de hoy (día del negocio); las de hoy viven en /tasks/today
+  // y así una tarea no aparece en ambas listas a la vez.
+  const { start } = businessDayBounds();
   const where = {
     ...scopeFilter(req.user),
-    nextFollowUpAt: { lt: now },
+    nextFollowUpAt: { lt: start },
   };
 
   const items = await prisma.client.findMany({
@@ -285,10 +320,13 @@ async function importClients(req, res) {
     }
     knownPhones.add(normPhone);
 
+    const phoneAltTrimmed = row.phoneAlt ? String(row.phoneAlt).trim() : undefined;
     toCreate.push({
       fullName,
       phone,
-      phoneAlt: row.phoneAlt ? String(row.phoneAlt).trim() : undefined,
+      phoneNormalized: normPhone || null,
+      phoneAlt: phoneAltTrimmed,
+      phoneAltNormalized: normalizePhoneOrNull(phoneAltTrimmed),
       email: row.email ? String(row.email).trim() : undefined,
       address: row.address ? String(row.address).trim() : undefined,
       source: row.source ? String(row.source).trim() : undefined,
