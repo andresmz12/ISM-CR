@@ -15,6 +15,7 @@ const integrationRoutes = require('./routes/integrationRoutes');
 const companyRoutes = require('./routes/companyRoutes');
 const dealRoutes = require('./routes/dealRoutes');
 const reportRoutes = require('./routes/reportRoutes');
+const projectRoutes = require('./routes/projectRoutes');
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.use('/api/integrations', integrationRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/deals', dealRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/projects', projectRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 

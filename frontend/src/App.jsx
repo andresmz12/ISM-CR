@@ -12,6 +12,8 @@ import CompaniesPage from './pages/CompaniesPage';
 import CompanyDetailPage from './pages/CompanyDetailPage';
 import ReportsPage from './pages/ReportsPage';
 import CalendarPage from './pages/CalendarPage';
+import ProjectsPage from './pages/ProjectsPage';
+import ProjectDetailPage from './pages/ProjectDetailPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminStatusesPage from './pages/AdminStatusesPage';
 
@@ -33,6 +35,8 @@ export default function App() {
               <Route path="/companies/:id" element={<CompanyDetailPage />} />
               <Route path="/reports" element={<ReportsPage />} />
               <Route path="/calendar" element={<CalendarPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/projects/:id" element={<ProjectDetailPage />} />
 
               <Route element={<ProtectedRoute roles={['ADMIN']} />}>
                 <Route path="/admin/users" element={<AdminUsersPage />} />

@@ -37,4 +37,25 @@ async function requireApiKey(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireRole, requireApiKey };
+// Cada proyecto tiene su propio equipo: ADMIN/SUPERVISOR ven y administran todos los
+// proyectos, un AGENT solo accede a los proyectos donde tiene una fila en ProjectMember.
+async function requireProjectAccess(req, res, next) {
+  const { projectId } = req.params;
+  const isPrivileged = req.user.role === 'ADMIN' || req.user.role === 'SUPERVISOR';
+
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+
+  if (!isPrivileged) {
+    const membership = await prisma.projectMember.findUnique({
+      where: { projectId_userId: { projectId, userId: req.user.sub } },
+    });
+    if (!membership) return res.status(404).json({ error: 'Project not found' });
+  }
+
+  req.project = project;
+  req.isProjectPrivileged = isPrivileged;
+  next();
+}
+
+module.exports = { requireAuth, requireRole, requireApiKey, requireProjectAccess };

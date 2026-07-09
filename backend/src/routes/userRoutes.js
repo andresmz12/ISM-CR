@@ -6,7 +6,7 @@ const { validate } = require('../utils/validate');
 
 const router = express.Router();
 
-router.use(requireAuth, requireRole('ADMIN'));
+router.use(requireAuth);
 
 const createSchema = z.object({
   fullName: z.string().min(1),
@@ -26,7 +26,7 @@ const updateSchema = z.object({
  * @openapi
  * /users:
  *   get:
- *     summary: List all users (Admin only)
+ *     summary: List all users (Admin/Supervisor only)
  *     tags: [Users]
  *     security: [{ bearerAuth: [] }]
  *     responses:
@@ -38,8 +38,8 @@ const updateSchema = z.object({
  *     responses:
  *       201: { description: User created }
  */
-router.get('/', listUsers);
-router.post('/', validate(createSchema), createUser);
+router.get('/', requireRole('ADMIN', 'SUPERVISOR'), listUsers);
+router.post('/', requireRole('ADMIN'), validate(createSchema), createUser);
 
 /**
  * @openapi
@@ -51,6 +51,6 @@ router.post('/', validate(createSchema), createUser);
  *     responses:
  *       200: { description: User updated }
  */
-router.patch('/:id', validate(updateSchema), updateUser);
+router.patch('/:id', requireRole('ADMIN'), validate(updateSchema), updateUser);
 
 module.exports = router;

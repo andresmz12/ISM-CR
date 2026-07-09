@@ -26,6 +26,12 @@ const navSections = [
     ],
   },
   {
+    title: 'Proyectos',
+    items: [
+      { to: '/projects', label: 'Proyectos', icon: 'folder', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
+    ],
+  },
+  {
     title: 'Reportes',
     items: [
       { to: '/reports', label: 'Reportes', icon: 'trendingUp', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
