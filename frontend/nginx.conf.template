@@ -4,7 +4,19 @@ server {
   root /usr/share/nginx/html;
   index index.html;
 
+  # Los archivos en /assets/ llevan un hash de contenido en el nombre (Vite),
+  # así que un cambio de código siempre genera un archivo nuevo: es seguro
+  # cachearlos para siempre.
+  location /assets/ {
+    add_header Cache-Control "public, max-age=31536000, immutable";
+  }
+
+  # index.html NO cambia de nombre entre despliegues, pero sí su contenido
+  # (apunta a los archivos hasheados del build actual). Si el navegador lo
+  # cachea, sigue pidiendo el JS viejo para siempre y nunca ve un deploy
+  # nuevo — por eso se fuerza a revalidar en cada visita.
   location / {
+    add_header Cache-Control "no-cache, no-store, must-revalidate";
     try_files $uri $uri/ /index.html;
   }
 }
