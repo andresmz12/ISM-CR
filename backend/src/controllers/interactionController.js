@@ -36,6 +36,7 @@ async function createInteraction(req, res) {
     prisma.client.update({
       where: { id: clientId },
       data: {
+        lastContactedAt: new Date(),
         ...(resultStatusId ? { statusId: resultStatusId } : {}),
         ...(nextFollowUpAt !== undefined ? { nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : null } : {}),
       },

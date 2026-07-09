@@ -34,6 +34,7 @@ export default function ImportClientsModal({ onClose, onImported }) {
   const [rows, setRows] = useState([]);
   const [mapping, setMapping] = useState({});
   const [duplicateAction, setDuplicateAction] = useState('skip');
+  const [autoAssign, setAutoAssign] = useState(false);
   const [error, setError] = useState('');
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState(null);
@@ -104,7 +105,7 @@ export default function ImportClientsModal({ onClose, onImported }) {
           tags: get('tags') ? get('tags').split(/[,;]/).map((t) => t.trim()).filter(Boolean) : undefined,
         };
       }).filter((r) => r.fullName || r.phone);
-      const res = await api.post('/clients/import', { rows: payload, duplicateAction });
+      const res = await api.post('/clients/import', { rows: payload, duplicateAction, autoAssign });
       setResult(res.data);
       setStep('done');
       onImported();
@@ -229,6 +230,14 @@ export default function ImportClientsModal({ onClose, onImported }) {
                     Crear de todos modos
                   </label>
                 </div>
+              </div>
+
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-slate-800">4. Asignación de agente</h3>
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={autoAssign} onChange={(e) => setAutoAssign(e.target.checked)} className="accent-orange-600" />
+                  Repartir automáticamente las filas sin agente entre los agentes activos (round-robin)
+                </label>
               </div>
 
               <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">

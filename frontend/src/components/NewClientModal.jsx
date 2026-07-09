@@ -27,7 +27,8 @@ export default function NewClientModal({ statuses, agents, companies = [], onClo
         email: form.email || undefined,
         address: form.address || undefined,
         statusId: form.statusId || undefined,
-        assignedAgentId: form.assignedAgentId || undefined,
+        assignedAgentId: form.assignedAgentId === '__auto__' ? undefined : (form.assignedAgentId || undefined),
+        autoAssign: form.assignedAgentId === '__auto__' || undefined,
         companyId: form.companyId || undefined,
         source: form.source || undefined,
         tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : undefined,
@@ -100,6 +101,7 @@ export default function NewClientModal({ statuses, agents, companies = [], onClo
               <label className="mb-1 block text-sm font-medium text-slate-700">Agente asignado</label>
               <select value={form.assignedAgentId} onChange={(e) => update('assignedAgentId', e.target.value)} className={inputCls}>
                 <option value="">Sin asignar</option>
+                {agents.length > 0 && <option value="__auto__">Automático (al agente con menos clientes)</option>}
                 {agents.map((a) => <option key={a.id} value={a.id}>{a.fullName}</option>)}
               </select>
             </div>

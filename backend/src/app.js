@@ -16,6 +16,9 @@ const companyRoutes = require('./routes/companyRoutes');
 const dealRoutes = require('./routes/dealRoutes');
 const reportRoutes = require('./routes/reportRoutes');
 const projectRoutes = require('./routes/projectRoutes');
+const savedFilterRoutes = require('./routes/savedFilterRoutes');
+const searchRoutes = require('./routes/searchRoutes');
+const apiKeyRoutes = require('./routes/apiKeyRoutes');
 
 const app = express();
 
@@ -48,6 +51,9 @@ app.use('/api/companies', companyRoutes);
 app.use('/api/deals', dealRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/saved-filters', savedFilterRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/api-keys', apiKeyRoutes);
 
 app.use((req, res) => res.status(404).json({ error: 'Not found' }));
 
@@ -57,6 +63,7 @@ app.use((err, req, res, next) => {
   if (err.code === 'P2002') return res.status(409).json({ error: 'Ya existe un registro con ese valor único' });
   if (err.code === 'P2003') return res.status(409).json({ error: 'Referencia inválida o el registro tiene datos relacionados' });
   if (err.code === 'P2025') return res.status(404).json({ error: 'Registro no encontrado' });
+  if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ error: 'El archivo supera el límite de 5 MB' });
   console.error(err);
   res.status(500).json({ error: 'Internal server error' });
 });

@@ -140,10 +140,43 @@ Kanban, y reflejo inmediato en el dashboard — sin errores de consola.
 ## Integraciones externas
 
 Los endpoints `/api/integrations/*` usan autenticación por API key (header `x-api-key`),
-independiente del login de usuarios, para que apps externas (paquetería, etc.) puedan
-consultar o actualizar el estatus de un cliente. Las API keys se gestionan directamente
-en la tabla `api_keys` (hash SHA-256 + `API_KEY_SALT`); un endpoint de administración de
-keys se añadirá si se requiere gestión desde la UI.
+independiente del login de usuarios. Las API keys se crean y gestionan desde la UI
+(Administración → API Keys); en la BD solo se guarda el hash (SHA-256 + `API_KEY_SALT`)
+y el valor en claro se muestra una única vez al crearla.
+
+**Captura de leads** (`POST /api/integrations/leads`): pensado para el formulario del
+sitio web o campañas de ads. Deduplica por teléfono normalizado (si el lead ya existe,
+registra una interacción en vez de duplicarlo) y asigna el lead nuevo automáticamente
+al agente activo con menos clientes (round-robin).
+
+```bash
+curl -X POST https://<backend>/api/integrations/leads \
+  -H "x-api-key: <API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"fullName":"Lead Web","phone":"555-1234","source":"landing","notes":"Quiere cotización"}'
+```
+
+### Otras funciones estilo CRM grande
+
+- **Auto-asignación round-robin**: opción "Automático" al crear cliente, checkbox al
+  importar Excel, y siempre activa para leads del webhook — reparte al agente activo
+  con menos clientes.
+- **Alertas SLA** (en Agenda): leads sin primer contacto en más de `SLA_FIRST_CONTACT_HOURS`
+  (default 24h) y clientes "fríos" sin interacción hace más de `SLA_STALE_DAYS` (default 7 días),
+  calculado sobre `clients.lastContactedAt` que se actualiza con cada interacción.
+- **Fusión de duplicados**: en el detalle del cliente se listan posibles duplicados por
+  teléfono normalizado y Admin/Supervisor pueden fusionarlos (mueve historial, deals y
+  archivos; completa campos vacíos; elimina el duplicado).
+- **Vistas guardadas**: cada usuario puede guardar combinaciones de filtros de la lista
+  de clientes con nombre.
+- **Búsqueda global**: barra en el header que busca clientes, empresas y deals a la vez,
+  respetando el scoping por rol.
+- **Archivos por cliente**: adjuntos de hasta 5 MB guardados en Postgres (Railway no
+  tiene disco persistente).
+- **PWA**: manifest + meta tags; se puede "instalar" desde el navegador del teléfono, y
+  el menú lateral se convierte en drawer en pantallas pequeñas.
+- **Zona horaria del negocio**: `BUSINESS_TIMEZONE` (IANA, default `America/Chicago`)
+  define cuándo empieza "hoy" para agenda y alertas, con DST automático.
 
 ## Despliegue en Railway
 

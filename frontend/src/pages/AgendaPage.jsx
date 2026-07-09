@@ -43,14 +43,18 @@ function ClientTaskList({ items, emptyText }) {
 function ListView() {
   const [today, setToday] = useState([]);
   const [overdue, setOverdue] = useState([]);
+  const [uncontacted, setUncontacted] = useState({ hours: 24, items: [] });
+  const [stale, setStale] = useState({ days: 7, items: [] });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
       api.get('/clients/tasks/today'),
       api.get('/clients/tasks/overdue'),
+      api.get('/clients/alerts/uncontacted').catch(() => ({ data: { hours: 24, items: [] } })),
+      api.get('/clients/alerts/stale').catch(() => ({ data: { days: 7, items: [] } })),
     ])
-      .then(([t, o]) => { setToday(t.data); setOverdue(o.data); })
+      .then(([t, o, u, s]) => { setToday(t.data); setOverdue(o.data); setUncontacted(u.data); setStale(s.data); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -64,6 +68,36 @@ function ListView() {
 
   return (
     <div className="space-y-6">
+      {uncontacted.items.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5">
+          <div className="mb-2 flex items-center gap-2">
+            <Icon name="alert" className="h-4 w-4 text-amber-600" />
+            <h2 className="text-sm font-semibold text-amber-800">
+              Leads sin primer contacto ({uncontacted.items.length}) — llevan más de {uncontacted.hours}h sin ninguna interacción
+            </h2>
+          </div>
+          <div className="divide-y divide-amber-100">
+            {uncontacted.items.map((c) => (
+              <div key={c.id} className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <Avatar name={c.fullName} className="h-9 w-9 text-xs" />
+                  <div>
+                    <Link to={`/clients/${c.id}`} className="font-semibold text-slate-900 hover:text-orange-600">{c.fullName}</Link>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                      <Icon name="phone" className="h-3.5 w-3.5" />{c.phone}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-right text-sm text-slate-500">
+                  {c.assignedAgent ? <span className="text-xs">{c.assignedAgent.fullName}</span> : <span className="text-xs font-medium text-amber-700">Sin asignar</span>}
+                  <span className="text-xs">Creado {new Date(c.createdAt).toLocaleDateString()}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {overdue.length > 0 && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-5">
           <div className="mb-2 flex items-center gap-2">
@@ -81,6 +115,36 @@ function ListView() {
         </div>
         <ClientTaskList items={today} emptyText="Sin seguimientos programados para hoy." />
       </div>
+
+      {stale.items.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <div className="mb-2 flex items-center gap-2">
+            <Icon name="clock" className="h-4 w-4 text-slate-400" />
+            <h2 className="text-sm font-semibold text-slate-900">
+              Clientes fríos ({stale.items.length}) — sin contacto hace más de {stale.days} días
+            </h2>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {stale.items.map((c) => (
+              <div key={c.id} className="flex items-center justify-between py-3">
+                <div className="flex items-center gap-3">
+                  <Avatar name={c.fullName} className="h-9 w-9 text-xs" />
+                  <div>
+                    <Link to={`/clients/${c.id}`} className="font-semibold text-slate-900 hover:text-orange-600">{c.fullName}</Link>
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                      <Icon name="phone" className="h-3.5 w-3.5" />{c.phone}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-right text-sm text-slate-500">
+                  <StatusBadge name={c.status?.name} />
+                  <span className="text-xs">Último contacto: {c.lastContactedAt ? new Date(c.lastContactedAt).toLocaleDateString() : '—'}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,10 +2,12 @@ const express = require('express');
 const { z } = require('zod');
 const {
   listClients, getClient, createClient, updateClient, deleteClient, reassignClient, dailyTasks, overdueTasks, rangeTasks, importClients,
+  uncontactedLeads, staleClients, clientDuplicates, mergeClients,
 } = require('../controllers/clientController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { validate } = require('../utils/validate');
 const interactionRoutes = require('./interactionRoutes');
+const attachmentRoutes = require('./attachmentRoutes');
 
 const router = express.Router();
 
@@ -23,14 +25,18 @@ const createSchema = z.object({
   source: z.string().optional(),
   tags: z.array(z.string()).optional(),
   nextFollowUpAt: z.string().datetime().optional(),
+  autoAssign: z.boolean().optional(),
 });
 
-const updateSchema = createSchema.partial();
+const updateSchema = createSchema.omit({ autoAssign: true }).partial();
+
+const mergeSchema = z.object({ sourceId: z.string().uuid() });
 
 const reassignSchema = z.object({ agentId: z.string().uuid() });
 
 const importSchema = z.object({
   duplicateAction: z.enum(['skip', 'create']).optional(),
+  autoAssign: z.boolean().optional(),
   rows: z.array(z.object({
     fullName: z.string(),
     phone: z.union([z.string(), z.number()]).transform(String),
@@ -122,6 +128,38 @@ router.get('/tasks/range', rangeTasks);
 
 /**
  * @openapi
+ * /clients/alerts/uncontacted:
+ *   get:
+ *     summary: Leads created more than N hours ago that were never contacted (first-contact SLA)
+ *     tags: [Clients]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: hours
+ *         schema: { type: integer, default: 24 }
+ *     responses:
+ *       200: { description: Uncontacted leads past the SLA }
+ */
+router.get('/alerts/uncontacted', uncontactedLeads);
+
+/**
+ * @openapi
+ * /clients/alerts/stale:
+ *   get:
+ *     summary: Clients whose last interaction was more than N days ago (cold clients)
+ *     tags: [Clients]
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - in: query
+ *         name: days
+ *         schema: { type: integer, default: 7 }
+ *     responses:
+ *       200: { description: Cold clients }
+ */
+router.get('/alerts/stale', staleClients);
+
+/**
+ * @openapi
  * /clients/{id}:
  *   get:
  *     summary: Get a single client with interaction history
@@ -158,6 +196,31 @@ router.delete('/:id', deleteClient);
  */
 router.post('/:id/reassign', requireRole('ADMIN', 'SUPERVISOR'), validate(reassignSchema), reassignClient);
 
+/**
+ * @openapi
+ * /clients/{id}/duplicates:
+ *   get:
+ *     summary: Potential duplicates of this client (matched by normalized phone)
+ *     tags: [Clients]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Possible duplicate clients }
+ */
+router.get('/:id/duplicates', clientDuplicates);
+
+/**
+ * @openapi
+ * /clients/{id}/merge:
+ *   post:
+ *     summary: Merge another client (sourceId) into this one — moves history, fills missing fields, deletes the source (Admin/Supervisor only)
+ *     tags: [Clients]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Merged client }
+ */
+router.post('/:id/merge', requireRole('ADMIN', 'SUPERVISOR'), validate(mergeSchema), mergeClients);
+
 router.use('/:clientId/interactions', interactionRoutes);
+router.use('/:clientId/attachments', attachmentRoutes);
 
 module.exports = router;

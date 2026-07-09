@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Icon, { Avatar } from './Icon';
+import GlobalSearch from './GlobalSearch';
 
 const navSections = [
   {
@@ -32,6 +34,7 @@ const navSections = [
     items: [
       { to: '/admin/users', label: 'Usuarios', icon: 'users', roles: ['ADMIN'] },
       { to: '/admin/statuses', label: 'Estatus', icon: 'settings', roles: ['ADMIN'] },
+      { to: '/admin/api-keys', label: 'API Keys', icon: 'key', roles: ['ADMIN'] },
     ],
   },
 ];
@@ -49,10 +52,17 @@ function currentSectionLabel(pathname) {
 export default function Layout() {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Al navegar (tocar un enlace) se cierra el menú en móvil.
+  useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
 
   return (
     <div className="flex h-screen bg-slate-100 text-slate-900">
-      <aside className="flex w-60 shrink-0 flex-col bg-zinc-950">
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-30 bg-slate-900/50 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+      <aside className={`fixed inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col bg-zinc-950 transition-transform md:static md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center gap-3 px-5 py-5">
           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-sm font-bold text-white shadow-lg shadow-orange-500/30">
             ISM
@@ -117,11 +127,21 @@ export default function Layout() {
       </aside>
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <header className="flex shrink-0 items-center border-b border-slate-200 bg-white px-6 py-3 lg:px-8">
-          <div className="flex items-center gap-2 text-sm text-slate-500">
+        <header className="flex shrink-0 items-center gap-4 border-b border-slate-200 bg-white px-4 py-3 lg:px-8">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 md:hidden"
+            aria-label="Abrir menú"
+          >
+            <Icon name="menu" className="h-5 w-5" />
+          </button>
+          <div className="hidden items-center gap-2 text-sm text-slate-500 sm:flex">
             <span>ISM CRM</span>
             <Icon name="chevronRight" className="h-3.5 w-3.5 text-slate-300" />
-            <span className="font-medium text-slate-900">{currentSectionLabel(location.pathname)}</span>
+            <span className="whitespace-nowrap font-medium text-slate-900">{currentSectionLabel(location.pathname)}</span>
+          </div>
+          <div className="flex flex-1 justify-end">
+            <GlobalSearch />
           </div>
         </header>
 

@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
+const { agentsByLoad, pickAutoAssignAgent } = require('../utils/autoAssign');
 
 // Normaliza teléfonos a solo dígitos para comparar duplicados
 // ("8888-1234" y "88881234" deben coincidir).
@@ -134,7 +135,7 @@ async function getClient(req, res) {
 }
 
 async function createClient(req, res) {
-  const { fullName, phone, phoneAlt, email, address, statusId, assignedAgentId, companyId, source, tags, nextFollowUpAt } = req.body;
+  const { fullName, phone, phoneAlt, email, address, statusId, assignedAgentId, companyId, source, tags, nextFollowUpAt, autoAssign } = req.body;
   let finalStatusId = statusId;
   if (!finalStatusId) {
     const def = await prisma.status.findFirst({ where: { isDefault: true } });
@@ -143,7 +144,12 @@ async function createClient(req, res) {
 
   const duplicates = await findDuplicates(phone, phoneAlt);
   // Un AGENT no puede asignar el cliente a otro agente al crearlo.
-  const finalAssignedAgentId = req.user.role === 'AGENT' ? req.user.sub : (assignedAgentId ?? undefined);
+  let finalAssignedAgentId = req.user.role === 'AGENT' ? req.user.sub : (assignedAgentId ?? undefined);
+  // Round-robin: si el creador no es agente, no eligió a nadie y pidió
+  // auto-asignar, se asigna al agente activo con menos clientes.
+  if (!finalAssignedAgentId && autoAssign) {
+    finalAssignedAgentId = (await pickAutoAssignAgent()) ?? undefined;
+  }
 
   const client = await prisma.client.create({
     data: {
@@ -298,8 +304,116 @@ async function overdueTasks(req, res) {
   res.json(items);
 }
 
+// Leads que nunca han sido contactados y ya pasaron el SLA de primer contacto.
+async function uncontactedLeads(req, res) {
+  const hours = Math.max(parseInt(req.query.hours, 10) || parseInt(process.env.SLA_FIRST_CONTACT_HOURS ?? '24', 10), 1);
+  const threshold = new Date(Date.now() - hours * 60 * 60 * 1000);
+
+  const items = await prisma.client.findMany({
+    where: {
+      ...scopeFilter(req.user),
+      lastContactedAt: null,
+      createdAt: { lt: threshold },
+    },
+    include: { status: true, assignedAgent: { select: { id: true, fullName: true } } },
+    orderBy: { createdAt: 'asc' },
+  });
+  res.json({ hours, items });
+}
+
+// Clientes "fríos": sí fueron contactados alguna vez, pero hace más de N días.
+async function staleClients(req, res) {
+  const days = Math.max(parseInt(req.query.days, 10) || parseInt(process.env.SLA_STALE_DAYS ?? '7', 10), 1);
+  const threshold = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const items = await prisma.client.findMany({
+    where: {
+      ...scopeFilter(req.user),
+      lastContactedAt: { lt: threshold },
+    },
+    include: { status: true, assignedAgent: { select: { id: true, fullName: true } } },
+    orderBy: { lastContactedAt: 'asc' },
+    take: 200,
+  });
+  res.json({ days, items });
+}
+
+// Posibles duplicados de un cliente ya existente (por teléfono normalizado).
+async function clientDuplicates(req, res) {
+  const { id } = req.params;
+  const client = await prisma.client.findFirst({ where: { id, ...scopeFilter(req.user) } });
+  if (!client) return res.status(404).json({ error: 'Client not found' });
+  const duplicates = await findDuplicates(client.phone, client.phoneAlt, id);
+  res.json(duplicates);
+}
+
+// Fusiona el cliente `sourceId` dentro de `:id` (el que se conserva): mueve
+// interacciones, deals, adjuntos, asignaciones y auditoría; completa campos
+// vacíos del destino con los del origen; y elimina el origen.
+async function mergeClients(req, res) {
+  const { id } = req.params;
+  const { sourceId } = req.body;
+  if (sourceId === id) return res.status(400).json({ error: 'No se puede fusionar un cliente consigo mismo' });
+
+  const [target, source] = await Promise.all([
+    prisma.client.findUnique({ where: { id } }),
+    prisma.client.findUnique({ where: { id: sourceId } }),
+  ]);
+  if (!target || !source) return res.status(404).json({ error: 'Client not found' });
+
+  const fill = {};
+  if (!target.phoneAlt && source.phone !== target.phone) fill.phoneAlt = source.phone;
+  if (!target.email && source.email) fill.email = source.email;
+  if (!target.address && source.address) fill.address = source.address;
+  if (!target.source && source.source) fill.source = source.source;
+  if (!target.companyId && source.companyId) fill.companyId = source.companyId;
+  if (!target.assignedAgentId && source.assignedAgentId) fill.assignedAgentId = source.assignedAgentId;
+  if (!target.nextFollowUpAt && source.nextFollowUpAt) fill.nextFollowUpAt = source.nextFollowUpAt;
+  if (source.lastContactedAt && (!target.lastContactedAt || source.lastContactedAt > target.lastContactedAt)) {
+    fill.lastContactedAt = source.lastContactedAt;
+  }
+  if (fill.phoneAlt) fill.phoneAltNormalized = normalizePhoneOrNull(fill.phoneAlt);
+  const mergedTags = Array.from(new Set([...(target.tags ?? []), ...(source.tags ?? [])]));
+  if (mergedTags.length !== target.tags.length) fill.tags = mergedTags;
+
+  const [merged] = await prisma.$transaction([
+    prisma.client.update({
+      where: { id },
+      data: fill,
+      include: { status: true, assignedAgent: { select: { id: true, fullName: true } } },
+    }),
+    prisma.interaction.updateMany({ where: { clientId: sourceId }, data: { clientId: id } }),
+    prisma.deal.updateMany({ where: { clientId: sourceId }, data: { clientId: id } }),
+    prisma.attachment.updateMany({ where: { clientId: sourceId }, data: { clientId: id } }),
+    prisma.clientAssignment.updateMany({ where: { clientId: sourceId }, data: { clientId: id } }),
+    prisma.auditLog.updateMany({ where: { clientId: sourceId }, data: { clientId: id } }),
+    prisma.auditLog.create({
+      data: {
+        clientId: id,
+        userId: req.user.sub,
+        field: 'merge',
+        oldValue: `${source.fullName} (${source.phone})`,
+        newValue: 'fusionado en este cliente',
+      },
+    }),
+    prisma.client.delete({ where: { id: sourceId } }),
+  ]);
+  res.json(merged);
+}
+
 async function importClients(req, res) {
-  const { rows, duplicateAction = 'skip' } = req.body;
+  const { rows, duplicateAction = 'skip', autoAssign = false } = req.body;
+
+  // Para repartir filas sin agente cuando se pide auto-asignación: se parte de
+  // la carga actual y se va incrementando en memoria para que el lote quede parejo.
+  const ranked = autoAssign && req.user.role !== 'AGENT' ? await agentsByLoad() : [];
+  function nextAgentId() {
+    if (ranked.length === 0) return undefined;
+    let min = ranked[0];
+    for (const a of ranked) if (a.load < min.load) min = a;
+    min.load += 1;
+    return min.id;
+  }
 
   const [statuses, defaultStatus, existingClients] = await Promise.all([
     prisma.status.findMany(),
@@ -355,7 +469,9 @@ async function importClients(req, res) {
       source: row.source ? String(row.source).trim() : undefined,
       tags: Array.isArray(row.tags) ? row.tags : [],
       statusId,
-      assignedAgentId: req.user.role === 'AGENT' ? req.user.sub : (row.assignedAgentId || undefined),
+      assignedAgentId: req.user.role === 'AGENT'
+        ? req.user.sub
+        : (row.assignedAgentId || nextAgentId()),
     });
   });
 
@@ -369,4 +485,5 @@ async function importClients(req, res) {
 
 module.exports = wrapAll({
   listClients, getClient, createClient, updateClient, deleteClient, reassignClient, dailyTasks, overdueTasks, rangeTasks, importClients,
+  uncontactedLeads, staleClients, clientDuplicates, mergeClients,
 });

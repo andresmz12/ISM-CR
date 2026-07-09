@@ -85,6 +85,8 @@ export default function ClientsPage() {
   const [noteClient, setNoteClient] = useState(null);
   const [flashMessage, setFlashMessage] = useState('');
   const [visibleCols, setVisibleCols] = useState(loadColumnPrefs);
+  const [savedFilters, setSavedFilters] = useState([]);
+  const [activeFilterId, setActiveFilterId] = useState('');
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -112,10 +114,42 @@ export default function ClientsPage() {
   useEffect(() => {
     api.get('/statuses').then((res) => setStatuses(res.data));
     api.get('/companies').then((res) => setCompanies(res.data)).catch(() => {});
+    api.get('/saved-filters').then((res) => setSavedFilters(res.data)).catch(() => {});
     if (canFilterByAgent) {
       api.get('/users').then((res) => setAgents(res.data.filter((u) => u.active))).catch(() => {});
     }
   }, [canFilterByAgent]);
+
+  function applySavedFilter(id) {
+    setActiveFilterId(id);
+    const sf = savedFilters.find((f) => f.id === id);
+    const filters = sf?.filters ?? {};
+    setSearch(filters.search ?? '');
+    setStatusId(filters.statusId ?? '');
+    setAssignedAgentId(filters.assignedAgentId ?? '');
+    setPage(1);
+  }
+
+  async function saveCurrentFilter() {
+    const name = window.prompt('Nombre de la vista (ej. "Interesados sin agente"):');
+    if (!name?.trim()) return;
+    const filters = {};
+    if (search) filters.search = search;
+    if (statusId) filters.statusId = statusId;
+    if (assignedAgentId) filters.assignedAgentId = assignedAgentId;
+    const res = await api.post('/saved-filters', { name: name.trim(), filters });
+    setSavedFilters((prev) => [...prev, res.data]);
+    setActiveFilterId(res.data.id);
+    setFlashMessage(`Vista "${res.data.name}" guardada.`);
+  }
+
+  async function deleteActiveFilter() {
+    const sf = savedFilters.find((f) => f.id === activeFilterId);
+    if (!sf || !window.confirm(`¿Eliminar la vista "${sf.name}"?`)) return;
+    await api.delete(`/saved-filters/${sf.id}`);
+    setSavedFilters((prev) => prev.filter((f) => f.id !== sf.id));
+    setActiveFilterId('');
+  }
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
@@ -235,6 +269,28 @@ export default function ClientsPage() {
             {agents.map((a) => <option key={a.id} value={a.id}>{a.fullName}</option>)}
           </select>
         )}
+        <div className="flex items-center gap-1.5">
+          <select value={activeFilterId} onChange={(e) => applySavedFilter(e.target.value)} className={inputCls}>
+            <option value="">Vistas guardadas...</option>
+            {savedFilters.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
+          </select>
+          <button
+            onClick={saveCurrentFilter}
+            title="Guardar los filtros actuales como vista"
+            className="rounded-lg border border-slate-300 bg-white p-2 text-slate-500 shadow-sm transition hover:bg-slate-50 hover:text-slate-700"
+          >
+            <Icon name="plus" className="h-4 w-4" />
+          </button>
+          {activeFilterId && (
+            <button
+              onClick={deleteActiveFilter}
+              title="Eliminar esta vista guardada"
+              className="rounded-lg border border-slate-300 bg-white p-2 text-slate-500 shadow-sm transition hover:bg-red-50 hover:text-red-600"
+            >
+              <Icon name="trash" className="h-4 w-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {flashMessage && (

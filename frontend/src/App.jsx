@@ -14,6 +14,7 @@ import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminStatusesPage from './pages/AdminStatusesPage';
+import AdminApiKeysPage from './pages/AdminApiKeysPage';
 
 export default function App() {
   return (
@@ -37,6 +38,7 @@ export default function App() {
               <Route element={<ProtectedRoute roles={['ADMIN']} />}>
                 <Route path="/admin/users" element={<AdminUsersPage />} />
                 <Route path="/admin/statuses" element={<AdminStatusesPage />} />
+                <Route path="/admin/api-keys" element={<AdminApiKeysPage />} />
               </Route>
             </Route>
           </Route>

@@ -60,6 +60,8 @@ model User {
   deals                Deal[]
   projectMemberships   ProjectMember[]
   assignedProjectTasks ProjectTask[]
+  savedFilters         SavedFilter[]
+  attachments          Attachment[]
 
   @@map("users")
 }
@@ -95,6 +97,9 @@ model Client {
   source          String?
   tags            String[]  @default([])
   nextFollowUpAt  DateTime?
+  // Última interacción registrada (denormalizado): base de las alertas de
+  // "lead sin contactar" y "cliente frío" sin joins costosos.
+  lastContactedAt DateTime?
   companyId       String?
   company         Company?  @relation(fields: [companyId], references: [id])
   createdAt       DateTime  @default(now())
@@ -104,6 +109,7 @@ model Client {
   assignments  ClientAssignment[]
   auditLogs    AuditLog[]
   deals        Deal[]
+  attachments  Attachment[]
 
   @@index([statusId])
   @@index([assignedAgentId])
@@ -111,7 +117,39 @@ model Client {
   @@index([phoneNormalized])
   @@index([phoneAltNormalized])
   @@index([companyId])
+  @@index([lastContactedAt])
   @@map("clients")
+}
+
+model SavedFilter {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  filters   Json
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("saved_filters")
+}
+
+// Archivos por cliente (cotizaciones, contratos, fotos). Se guardan en la BD
+// porque Railway no tiene disco persistente; el límite de tamaño lo impone
+// el endpoint de subida.
+model Attachment {
+  id           String   @id @default(uuid())
+  clientId     String
+  client       Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  fileName     String
+  mimeType     String
+  size         Int
+  data         Bytes
+  uploadedById String?
+  uploadedBy   User?    @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime @default(now())
+
+  @@index([clientId])
+  @@map("attachments")
 }
 
 model Interaction {
