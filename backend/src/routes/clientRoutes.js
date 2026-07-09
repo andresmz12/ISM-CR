@@ -1,7 +1,7 @@
 const express = require('express');
 const { z } = require('zod');
 const {
-  listClients, getClient, createClient, updateClient, reassignClient, dailyTasks, overdueTasks,
+  listClients, getClient, createClient, updateClient, reassignClient, dailyTasks, overdueTasks, importClients,
 } = require('../controllers/clientController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { validate } = require('../utils/validate');
@@ -27,6 +27,21 @@ const createSchema = z.object({
 const updateSchema = createSchema.partial();
 
 const reassignSchema = z.object({ agentId: z.string().uuid() });
+
+const importSchema = z.object({
+  duplicateAction: z.enum(['skip', 'create']).optional(),
+  rows: z.array(z.object({
+    fullName: z.string(),
+    phone: z.union([z.string(), z.number()]).transform(String),
+    phoneAlt: z.union([z.string(), z.number()]).transform(String).optional(),
+    email: z.string().optional(),
+    address: z.string().optional(),
+    source: z.string().optional(),
+    tags: z.array(z.string()).optional(),
+    statusName: z.string().optional(),
+    assignedAgentId: z.string().uuid().optional(),
+  })).min(1).max(2000),
+});
 
 /**
  * @openapi
@@ -57,6 +72,18 @@ router.post('/', validate(createSchema), createClient);
  *     responses:
  *       200: { description: Today's follow-ups }
  */
+/**
+ * @openapi
+ * /clients/import:
+ *   post:
+ *     summary: Bulk-import clients (parsed from Excel/CSV on the frontend)
+ *     tags: [Clients]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       201: { description: Import summary (created, duplicates, errors) }
+ */
+router.post('/import', validate(importSchema), importClients);
+
 router.get('/tasks/today', dailyTasks);
 
 /**

@@ -65,6 +65,14 @@ con otras apps internas (paquetería, etc.) vía REST.
 - **Tareas vencidas**: además de "tareas de hoy" (`/clients/tasks/today`), existe
   `/clients/tasks/overdue` para detectar seguimientos que ya pasaron su fecha y nadie
   atendió — la base para futuras alertas/notificaciones.
+- **Importación desde Excel** (`POST /clients/import` + asistente en la UI): el archivo
+  (.xlsx/.xls/.csv, hasta 2000 filas) se parsea en el navegador con SheetJS, se mapean
+  las columnas (con autodetección de encabezados en español), y el backend deduplica por
+  teléfono normalizado (solo dígitos: "8888-1234" = "88881234") con opción de omitir o
+  crear duplicados. Devuelve resumen de creados/duplicados/errores por fila.
+- **Errores async controlados**: todos los controllers van envueltos en `asyncHandler`
+  (Express 4 no propaga promesas rechazadas) y el error handler global traduce errores
+  de Prisma (P2002/P2003/P2025) a respuestas 409/404 útiles.
 
 ## Roles
 

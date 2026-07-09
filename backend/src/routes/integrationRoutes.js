@@ -3,6 +3,7 @@ const { z } = require('zod');
 const prisma = require('../config/prisma');
 const { requireApiKey } = require('../middleware/auth');
 const { validate } = require('../utils/validate');
+const { asyncHandler } = require('../utils/asyncHandler');
 
 const router = express.Router();
 router.use(requireApiKey);
@@ -17,14 +18,14 @@ router.use(requireApiKey);
  *     responses:
  *       200: { description: Client detail }
  */
-router.get('/clients/:id', async (req, res) => {
+router.get('/clients/:id', asyncHandler(async (req, res) => {
   const client = await prisma.client.findUnique({
     where: { id: req.params.id },
     include: { status: true },
   });
   if (!client) return res.status(404).json({ error: 'Client not found' });
   res.json(client);
-});
+}));
 
 const statusUpdateSchema = z.object({ statusId: z.string().uuid(), note: z.string().optional() });
 
@@ -38,24 +39,34 @@ const statusUpdateSchema = z.object({ statusId: z.string().uuid(), note: z.strin
  *     responses:
  *       200: { description: Status updated }
  */
-router.post('/clients/:id/status', validate(statusUpdateSchema), async (req, res) => {
+router.post('/clients/:id/status', validate(statusUpdateSchema), asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { statusId, note } = req.body;
   const client = await prisma.client.findUnique({ where: { id } });
   if (!client) return res.status(404).json({ error: 'Client not found' });
 
-  const updated = await prisma.client.update({ where: { id }, data: { statusId } });
-  if (note) {
-    await prisma.interaction.create({
-      data: {
-        clientId: id,
-        userId: (await prisma.user.findFirst({ where: { role: 'ADMIN' } }))?.id,
-        notes: `[Integración externa] ${note}`,
-        resultStatusId: statusId,
-      },
-    });
-  }
+  const statusChanged = statusId !== client.statusId;
+  const systemUser = note ? await prisma.user.findFirst({ where: { role: 'ADMIN' } }) : null;
+
+  const [updated] = await prisma.$transaction([
+    prisma.client.update({ where: { id }, data: { statusId } }),
+    ...(statusChanged
+      ? [prisma.auditLog.create({
+          data: { clientId: id, field: 'statusId', oldValue: client.statusId, newValue: statusId },
+        })]
+      : []),
+    ...(note && systemUser
+      ? [prisma.interaction.create({
+          data: {
+            clientId: id,
+            userId: systemUser.id,
+            notes: `[Integración externa] ${note}`,
+            resultStatusId: statusId,
+          },
+        })]
+      : []),
+  ]);
   res.json(updated);
-});
+}));
 
 module.exports = router;

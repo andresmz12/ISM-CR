@@ -29,7 +29,8 @@ async function main() {
     create: { fullName: 'Administrador', email: adminEmail, passwordHash, role: 'ADMIN' },
   });
 
-  console.log(`Seed complete. Admin login: ${adminEmail} / ${adminPassword}`);
+  // No imprimir la contraseña: este script corre en cada arranque y quedaría en los logs.
+  console.log(`Seed complete. Admin: ${adminEmail}`);
 }
 
 main()

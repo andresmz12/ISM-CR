@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const prisma = require('../config/prisma');
+const { wrapAll } = require('../utils/asyncHandler');
 
 async function login(req, res) {
   const { email, password } = req.body;
@@ -29,4 +30,4 @@ async function me(req, res) {
   res.json(user);
 }
 
-module.exports = { login, me };
+module.exports = wrapAll({ login, me });

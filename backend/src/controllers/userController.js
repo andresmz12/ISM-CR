@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs');
 const prisma = require('../config/prisma');
+const { wrapAll } = require('../utils/asyncHandler');
 
 const publicSelect = { id: true, fullName: true, email: true, role: true, active: true, createdAt: true };
 
@@ -32,4 +33,4 @@ async function updateUser(req, res) {
   res.json(user);
 }
 
-module.exports = { listUsers, createUser, updateUser };
+module.exports = wrapAll({ listUsers, createUser, updateUser });

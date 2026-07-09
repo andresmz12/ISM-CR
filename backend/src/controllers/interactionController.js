@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { wrapAll } = require('../utils/asyncHandler');
 
 function scopeFilter(user) {
   if (user.role === 'AGENT') return { assignedAgentId: user.sub };
@@ -49,4 +50,4 @@ async function createInteraction(req, res) {
   res.status(201).json(interaction);
 }
 
-module.exports = { listInteractions, createInteraction };
+module.exports = wrapAll({ listInteractions, createInteraction });

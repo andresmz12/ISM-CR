@@ -1,4 +1,11 @@
 const prisma = require('../config/prisma');
+const { wrapAll } = require('../utils/asyncHandler');
+
+// Normaliza teléfonos a solo dígitos para comparar duplicados
+// ("8888-1234" y "88881234" deben coincidir).
+function normalizePhone(p) {
+  return String(p ?? '').replace(/\D/g, '');
+}
 
 function scopeFilter(user) {
   if (user.role === 'AGENT') {
@@ -196,6 +203,72 @@ async function overdueTasks(req, res) {
   res.json(items);
 }
 
-module.exports = {
-  listClients, getClient, createClient, updateClient, reassignClient, dailyTasks, overdueTasks,
-};
+async function importClients(req, res) {
+  const { rows, duplicateAction = 'skip' } = req.body;
+
+  const [statuses, defaultStatus, existingClients] = await Promise.all([
+    prisma.status.findMany(),
+    prisma.status.findFirst({ where: { isDefault: true } }),
+    prisma.client.findMany({ select: { phone: true, phoneAlt: true } }),
+  ]);
+
+  const statusByName = new Map(statuses.map((s) => [s.name.trim().toLowerCase(), s.id]));
+  const knownPhones = new Set();
+  for (const c of existingClients) {
+    if (c.phone) knownPhones.add(normalizePhone(c.phone));
+    if (c.phoneAlt) knownPhones.add(normalizePhone(c.phoneAlt));
+  }
+
+  const results = { created: 0, duplicates: 0, errors: [] };
+  const toCreate = [];
+
+  rows.forEach((row, index) => {
+    const fullName = String(row.fullName ?? '').trim();
+    const phone = String(row.phone ?? '').trim();
+    if (!fullName || !phone) {
+      results.errors.push({ row: index + 1, error: 'Nombre y teléfono son obligatorios' });
+      return;
+    }
+
+    let statusId = defaultStatus?.id;
+    if (row.statusName) {
+      const matched = statusByName.get(String(row.statusName).trim().toLowerCase());
+      if (matched) statusId = matched;
+    }
+    if (!statusId) {
+      results.errors.push({ row: index + 1, error: 'No hay estatus por defecto configurado' });
+      return;
+    }
+
+    const normPhone = normalizePhone(phone);
+    const isDuplicate = knownPhones.has(normPhone);
+    if (isDuplicate) {
+      results.duplicates += 1;
+      if (duplicateAction === 'skip') return;
+    }
+    knownPhones.add(normPhone);
+
+    toCreate.push({
+      fullName,
+      phone,
+      phoneAlt: row.phoneAlt ? String(row.phoneAlt).trim() : undefined,
+      email: row.email ? String(row.email).trim() : undefined,
+      address: row.address ? String(row.address).trim() : undefined,
+      source: row.source ? String(row.source).trim() : undefined,
+      tags: Array.isArray(row.tags) ? row.tags : [],
+      statusId,
+      assignedAgentId: req.user.role === 'AGENT' ? req.user.sub : (row.assignedAgentId || undefined),
+    });
+  });
+
+  if (toCreate.length > 0) {
+    const created = await prisma.client.createMany({ data: toCreate });
+    results.created = created.count;
+  }
+
+  res.status(201).json(results);
+}
+
+module.exports = wrapAll({
+  listClients, getClient, createClient, updateClient, reassignClient, dailyTasks, overdueTasks, importClients,
+});

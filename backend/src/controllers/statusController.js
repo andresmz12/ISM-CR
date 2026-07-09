@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { wrapAll } = require('../utils/asyncHandler');
 
 async function listStatuses(req, res) {
   const statuses = await prisma.status.findMany({ orderBy: { order: 'asc' } });
@@ -34,4 +35,4 @@ async function deleteStatus(req, res) {
   res.status(204).send();
 }
 
-module.exports = { listStatuses, createStatus, updateStatus, deleteStatus };
+module.exports = wrapAll({ listStatuses, createStatus, updateStatus, deleteStatus });

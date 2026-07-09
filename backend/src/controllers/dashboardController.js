@@ -1,4 +1,5 @@
 const prisma = require('../config/prisma');
+const { wrapAll } = require('../utils/asyncHandler');
 
 async function summary(req, res) {
   const scope = req.user.role === 'AGENT' ? { assignedAgentId: req.user.sub } : {};
@@ -51,7 +52,12 @@ async function exportClientsCsv(req, res) {
   });
 
   const header = ['Full Name', 'Phone', 'Alt Phone', 'Email', 'Address', 'Status', 'Assigned Agent', 'Source', 'Tags', 'Next Follow-up', 'Created At'];
-  const escape = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  // El prefijo ' evita que Excel ejecute valores como fórmulas (=, +, -, @)
+  const escape = (v) => {
+    let s = String(v ?? '');
+    if (/^[=+\-@]/.test(s)) s = `'${s}`;
+    return `"${s.replace(/"/g, '""')}"`;
+  };
   const rows = clients.map((c) => [
     c.fullName, c.phone, c.phoneAlt, c.email, c.address,
     c.status?.name, c.assignedAgent?.fullName, c.source, c.tags.join('; '),
@@ -64,4 +70,4 @@ async function exportClientsCsv(req, res) {
   res.send(csv);
 }
 
-module.exports = { summary, exportClientsCsv };
+module.exports = wrapAll({ summary, exportClientsCsv });
