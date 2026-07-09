@@ -105,14 +105,14 @@ export default function Layout() {
 
   return (
     <div className="flex h-screen bg-slate-100 text-slate-900">
-      <aside className="flex w-60 shrink-0 flex-col bg-orange-900">
+      <aside className="flex w-60 shrink-0 flex-col bg-zinc-950">
         <div className="flex items-center gap-3 px-5 py-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sm font-bold text-orange-700 shadow-lg shadow-black/10">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-sm font-bold text-white shadow-lg shadow-orange-500/30">
             ISM
           </span>
           <div>
             <div className="text-sm font-semibold text-white">ISM CRM</div>
-            <div className="text-[11px] text-orange-200/70">Gestión de clientes</div>
+            <div className="text-[11px] text-zinc-500">Gestión de clientes</div>
           </div>
         </div>
 
@@ -123,7 +123,7 @@ export default function Layout() {
             return (
               <div key={si}>
                 {section.title && (
-                  <div className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-orange-200/60">
+                  <div className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
                     {section.title}
                   </div>
                 )}
@@ -136,8 +136,8 @@ export default function Layout() {
                       className={({ isActive }) =>
                         `group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
                           isActive
-                            ? 'bg-black/20 text-white shadow-[inset_2px_0_0_0_#ffffff]'
-                            : 'text-orange-100/70 hover:bg-black/10 hover:text-white'
+                            ? 'bg-orange-500/15 text-white shadow-[inset_2px_0_0_0_#f97316]'
+                            : 'text-zinc-400 hover:bg-white/5 hover:text-white'
                         }`
                       }
                     >
@@ -151,17 +151,17 @@ export default function Layout() {
           })}
         </nav>
 
-        <div className="border-t border-white/15 p-3">
+        <div className="border-t border-white/10 p-3">
           <div className="flex items-center gap-3 rounded-lg px-2 py-2">
             <Avatar name={user?.fullName} className="h-9 w-9 text-xs" />
             <div className="min-w-0 flex-1">
               <div className="truncate text-sm font-medium text-white">{user?.fullName}</div>
-              <div className="text-[11px] text-orange-200/70">{ROLE_LABELS[user?.role] ?? user?.role}</div>
+              <div className="text-[11px] text-zinc-500">{ROLE_LABELS[user?.role] ?? user?.role}</div>
             </div>
             <button
               onClick={logout}
               title="Cerrar sesión"
-              className="rounded-lg p-2 text-orange-200/70 transition hover:bg-black/10 hover:text-white"
+              className="rounded-lg p-2 text-zinc-500 transition hover:bg-white/10 hover:text-white"
             >
               <Icon name="logout" className="h-[18px] w-[18px]" strokeWidth={1.8} />
             </button>

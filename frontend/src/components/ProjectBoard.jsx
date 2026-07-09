@@ -5,11 +5,11 @@ const COLUMN_ACCENTS = ['bg-orange-400', 'bg-sky-400', 'bg-emerald-400', 'bg-vio
 
 const STATUS_LABELS = { PENDING: 'Pendiente', IN_PROGRESS: 'En curso', DONE: 'Completado', BLOCKED: 'Bloqueado' };
 const STATUS_COLORS = {
-  PENDING: 'bg-orange-100 text-orange-700', IN_PROGRESS: 'bg-amber-100 text-amber-700',
-  DONE: 'bg-emerald-100 text-emerald-700', BLOCKED: 'bg-red-100 text-red-700',
+  PENDING: 'bg-sky-500 text-white', IN_PROGRESS: 'bg-amber-500 text-white',
+  DONE: 'bg-emerald-500 text-white', BLOCKED: 'bg-rose-500 text-white',
 };
 const PRIORITY_LABELS = { LOW: 'Baja', MEDIUM: 'Media', HIGH: 'Alta' };
-const PRIORITY_COLORS = { LOW: 'bg-sky-50 text-sky-600', MEDIUM: 'bg-violet-50 text-violet-600', HIGH: 'bg-rose-50 text-rose-600' };
+const PRIORITY_COLORS = { LOW: 'bg-slate-400 text-white', MEDIUM: 'bg-violet-500 text-white', HIGH: 'bg-rose-600 text-white' };
 
 export default function ProjectBoard({ sections, tasks, canManageSections, onOpenTask, onAddTask, onDropTask, onAddSection, onRenameSection, onDeleteSection }) {
   const [dragId, setDragId] = useState(null);
@@ -94,10 +94,10 @@ export default function ProjectBoard({ sections, tasks, canManageSections, onOpe
                 >
                   <div className="text-sm font-semibold text-slate-900">{task.title}</div>
                   <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${STATUS_COLORS[task.status]}`}>
+                    <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${STATUS_COLORS[task.status]}`}>
                       {STATUS_LABELS[task.status]}
                     </span>
-                    <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${PRIORITY_COLORS[task.priority]}`}>
+                    <span className={`rounded-md px-2 py-0.5 text-[11px] font-semibold ${PRIORITY_COLORS[task.priority]}`}>
                       {PRIORITY_LABELS[task.priority]}
                     </span>
                   </div>

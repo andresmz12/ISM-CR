@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import KanbanBoard from '../components/KanbanBoard';
+import { colorForStatus } from '../components/StatusBadge';
 import NewClientModal from '../components/NewClientModal';
 import ImportClientsModal from '../components/ImportClientsModal';
 import Icon, { Avatar } from '../components/Icon';
@@ -191,9 +192,9 @@ export default function ClientsPage() {
                       value={c.statusId}
                       onChange={(e) => handleStatusChange(c.id, e.target.value)}
                       onClick={(e) => e.stopPropagation()}
-                      className="cursor-pointer rounded-full border-0 bg-transparent py-1 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                      className={`cursor-pointer rounded-md border-0 py-1 pl-2.5 pr-6 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${colorForStatus(c.status?.name)}`}
                     >
-                      {statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      {statuses.map((s) => <option key={s.id} value={s.id} className="bg-white text-slate-900">{s.name}</option>)}
                     </select>
                   </td>
                   <td className="px-5 py-3">
