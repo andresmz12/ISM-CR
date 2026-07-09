@@ -13,9 +13,7 @@ const navSections = [
   {
     title: 'Ventas',
     items: [
-      { to: '/deals', label: 'Negocios', icon: 'briefcase', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
       { to: '/clients', label: 'Clientes', icon: 'clients', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
-      { to: '/companies', label: 'Empresas', icon: 'building', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
     ],
   },
   {
@@ -43,8 +41,6 @@ const ROLE_LABELS = { ADMIN: 'Administrador', SUPERVISOR: 'Supervisor', AGENT: '
 
 const QUICK_CREATE = [
   { label: 'Nuevo cliente', to: '/clients', icon: 'clients', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
-  { label: 'Nuevo negocio', to: '/deals', icon: 'briefcase', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
-  { label: 'Nueva empresa', to: '/companies', icon: 'building', roles: ['ADMIN', 'SUPERVISOR'] },
 ];
 
 function currentSectionLabel(pathname) {
@@ -60,6 +56,19 @@ function QuickCreateMenu({ role }) {
   const navigate = useNavigate();
   const items = QUICK_CREATE.filter((item) => item.roles.includes(role));
   if (items.length === 0) return null;
+
+  if (items.length === 1) {
+    const only = items[0];
+    return (
+      <button
+        onClick={() => navigate(only.to, { state: { openNew: true } })}
+        className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-orange-600/25 transition hover:bg-orange-700"
+      >
+        <Icon name="plus" className="h-4 w-4" />
+        {only.label}
+      </button>
+    );
+  }
 
   return (
     <div className="relative">

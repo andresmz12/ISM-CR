@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import StatusBadge from '../components/StatusBadge';
 import KanbanBoard from '../components/KanbanBoard';
 import NewClientModal from '../components/NewClientModal';
 import ImportClientsModal from '../components/ImportClientsModal';
@@ -14,7 +13,7 @@ export default function ClientsPage() {
   const navigate = useNavigate();
   const canFilterByAgent = user.role !== 'AGENT';
 
-  const [view, setView] = useState('kanban');
+  const [view, setView] = useState('table');
   const [statuses, setStatuses] = useState([]);
   const [agents, setAgents] = useState([]);
   const [companies, setCompanies] = useState([]);
@@ -56,6 +55,27 @@ export default function ClientsPage() {
     setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, statusId: newStatusId } : c)));
     try {
       await api.patch(`/clients/${clientId}`, { statusId: newStatusId });
+    } catch {
+      fetchClients();
+    }
+  }
+
+  async function handleStatusChange(clientId, newStatusId) {
+    const status = statuses.find((s) => s.id === newStatusId);
+    setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, statusId: newStatusId, status } : c)));
+    try {
+      await api.patch(`/clients/${clientId}`, { statusId: newStatusId });
+    } catch {
+      fetchClients();
+    }
+  }
+
+  async function handleReassign(clientId, agentId) {
+    if (!agentId) return;
+    const agent = agents.find((a) => a.id === agentId);
+    setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, assignedAgent: agent ?? null } : c)));
+    try {
+      await api.post(`/clients/${clientId}/reassign`, { agentId });
     } catch {
       fetchClients();
     }
@@ -166,9 +186,28 @@ export default function ClientsPage() {
                       </div>
                     )}
                   </td>
-                  <td className="px-5 py-3"><StatusBadge name={c.status?.name} /></td>
                   <td className="px-5 py-3">
-                    {c.assignedAgent ? (
+                    <select
+                      value={c.statusId}
+                      onChange={(e) => handleStatusChange(c.id, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="cursor-pointer rounded-full border-0 bg-transparent py-1 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                    >
+                      {statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
+                  </td>
+                  <td className="px-5 py-3">
+                    {canFilterByAgent ? (
+                      <select
+                        value={c.assignedAgent?.id ?? ''}
+                        onChange={(e) => handleReassign(c.id, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="cursor-pointer rounded-md border border-transparent bg-transparent py-1 text-sm text-slate-600 hover:border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                      >
+                        <option value="">Sin asignar</option>
+                        {agents.map((a) => <option key={a.id} value={a.id}>{a.fullName}</option>)}
+                      </select>
+                    ) : c.assignedAgent ? (
                       <div className="flex items-center gap-2 text-slate-600">
                         <Avatar name={c.assignedAgent.fullName} className="h-6 w-6 text-[9px]" />
                         {c.assignedAgent.fullName}
