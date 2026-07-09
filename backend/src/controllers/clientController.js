@@ -15,15 +15,38 @@ function normalizePhoneOrNull(p) {
 }
 
 // Límites del día en la zona horaria del negocio. El servidor corre en UTC
-// (Railway); sin este ajuste "hoy" empezaría a las 6pm del día anterior en
-// Costa Rica. UTC-6 fijo (CR no tiene horario de verano), configurable por env.
-const TZ_OFFSET_MINUTES = parseInt(process.env.TZ_OFFSET_MINUTES ?? '-360', 10);
+// (Railway); sin este ajuste "hoy" empezaría a las 6-7pm del día anterior.
+// Zona IANA para que el horario de verano (DST) se aplique solo.
+const BUSINESS_TIMEZONE = process.env.BUSINESS_TIMEZONE || 'America/Chicago';
+
+// Diferencia (ms) entre la hora local del negocio y UTC en un instante dado.
+function tzOffsetMs(date, timeZone) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone, hour12: false,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    }).formatToParts(date).map((p) => [p.type, p.value])
+  );
+  const asUTC = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour % 24, parts.minute, parts.second);
+  return asUTC - date.getTime();
+}
+
+// Instante UTC de la medianoche local que contiene a localMidnight (expresada
+// como Date en "hora local trasladada a UTC"). Doble pasada por si la
+// medianoche cae justo al otro lado de un cambio de DST.
+function utcInstantOfLocalMidnight(localMidnight, approxOffset) {
+  const guess = new Date(localMidnight.getTime() - approxOffset);
+  return new Date(localMidnight.getTime() - tzOffsetMs(guess, BUSINESS_TIMEZONE));
+}
 
 function businessDayBounds(now = new Date()) {
-  const local = new Date(now.getTime() + TZ_OFFSET_MINUTES * 60000);
+  const offset = tzOffsetMs(now, BUSINESS_TIMEZONE);
+  const local = new Date(now.getTime() + offset);
   local.setUTCHours(0, 0, 0, 0);
-  const start = new Date(local.getTime() - TZ_OFFSET_MINUTES * 60000);
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
+  const start = utcInstantOfLocalMidnight(local, offset);
+  const nextMidnight = new Date(local.getTime() + 24 * 60 * 60 * 1000);
+  const end = new Date(utcInstantOfLocalMidnight(nextMidnight, offset).getTime() - 1);
   return { start, end };
 }
 
