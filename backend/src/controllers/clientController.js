@@ -49,7 +49,16 @@ async function listClients(req, res) {
   const [items, total] = await Promise.all([
     prisma.client.findMany({
       where,
-      include: { status: true, assignedAgent: { select: { id: true, fullName: true } }, company: { select: { id: true, name: true } } },
+      include: {
+        status: true,
+        assignedAgent: { select: { id: true, fullName: true } },
+        company: { select: { id: true, name: true } },
+        interactions: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { notes: true, createdAt: true, user: { select: { fullName: true } } },
+        },
+      },
       orderBy: { updatedAt: 'desc' },
       skip,
       take,
