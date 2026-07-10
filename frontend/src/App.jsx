@@ -3,10 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import LoginPage from './pages/LoginPage';
-import DashboardPage from './pages/DashboardPage';
-import ClientsPage from './pages/ClientsPage';
 import ClientDetailPage from './pages/ClientDetailPage';
-import AgendaPage from './pages/AgendaPage';
 import DealsPage from './pages/DealsPage';
 import CompaniesPage from './pages/CompaniesPage';
 import CompanyDetailPage from './pages/CompanyDetailPage';
@@ -25,10 +22,11 @@ export default function App() {
 
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/clients" element={<ClientsPage />} />
+              {/* Empresa-primero: la lista de empresas es la pantalla de inicio.
+                  Los contactos/agenda/tareas viven dentro del detalle de cada
+                  empresa; solo el detalle de un contacto conserva URL propia. */}
+              <Route path="/" element={<Navigate to="/projects" replace />} />
               <Route path="/clients/:id" element={<ClientDetailPage />} />
-              <Route path="/agenda" element={<AgendaPage />} />
               <Route path="/deals" element={<DealsPage />} />
               <Route path="/companies" element={<CompaniesPage />} />
               <Route path="/companies/:id" element={<CompanyDetailPage />} />
@@ -43,7 +41,7 @@ export default function App() {
             </Route>
           </Route>
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/projects" replace />} />
         </Routes>
       </AuthProvider>
     </BrowserRouter>

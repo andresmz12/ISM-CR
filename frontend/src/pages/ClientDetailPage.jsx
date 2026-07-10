@@ -254,8 +254,12 @@ export default function ClientDetailPage() {
 
   return (
     <div className="space-y-6">
-      <Link to="/clients" className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-orange-600">
-        <Icon name="chevronLeft" className="h-4 w-4" /> Volver a contactos
+      <Link
+        to={client.project ? `/projects/${client.project.id}` : '/projects'}
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-orange-600"
+      >
+        <Icon name="chevronLeft" className="h-4 w-4" />
+        {client.project ? `Volver a ${client.project.name}` : 'Volver a empresas'}
       </Link>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

@@ -4,27 +4,11 @@ import { useAuth } from '../context/AuthContext';
 import Icon, { Avatar } from './Icon';
 import GlobalSearch from './GlobalSearch';
 
+// Navegación empresa-primero: los contactos, la agenda y las tareas viven DENTRO
+// de cada empresa (pestañas de su detalle), nunca como listas globales mezcladas.
 const navSections = [
   {
-    title: 'General',
-    items: [
-      { to: '/', label: 'Dashboard', icon: 'dashboard', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
-    ],
-  },
-  {
-    title: 'Ventas',
-    items: [
-      { to: '/clients', label: 'Contactos', icon: 'clients', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
-    ],
-  },
-  {
-    title: 'Actividad',
-    items: [
-      { to: '/agenda', label: 'Agenda', icon: 'tasks', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
-    ],
-  },
-  {
-    title: 'Equipos',
+    title: null,
     items: [
       { to: '/projects', label: 'Empresas', icon: 'building', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
     ],

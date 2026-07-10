@@ -27,7 +27,7 @@ function guessMapping(headers) {
   return mapping;
 }
 
-export default function ImportClientsModal({ projects = [], onClose, onImported }) {
+export default function ImportClientsModal({ projects = [], lockedProjectId, onClose, onImported }) {
   const [step, setStep] = useState('upload'); // upload | map | done
   const [fileName, setFileName] = useState('');
   const [headers, setHeaders] = useState([]);
@@ -145,7 +145,7 @@ export default function ImportClientsModal({ projects = [], onClose, onImported 
           tags: get('tags') ? get('tags').split(/[,;]/).map((t) => t.trim()).filter(Boolean) : undefined,
         };
       }).filter((r) => r.fullName || r.phone);
-      const res = await api.post('/clients/import', { rows: payload, duplicateAction, autoAssign, projectId: projectId || undefined });
+      const res = await api.post('/clients/import', { rows: payload, duplicateAction, autoAssign, projectId: lockedProjectId || projectId || undefined });
       setResult(res.data);
       setStep('done');
       onImported();
@@ -280,18 +280,20 @@ export default function ImportClientsModal({ projects = [], onClose, onImported 
                 </label>
               </div>
 
-              <div>
-                <h3 className="mb-2 text-sm font-semibold text-slate-800">5. Proyecto (opcional)</h3>
-                <select
-                  value={projectId}
-                  onChange={(e) => setProjectId(e.target.value)}
-                  className="w-full max-w-xs rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-orange-500 focus:outline-none"
-                >
-                  <option value="">Sin proyecto</option>
-                  {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </select>
-                <p className="mt-1 text-xs text-slate-500">Se asigna a todos los contactos que se creen en esta importación.</p>
-              </div>
+              {!lockedProjectId && (
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold text-slate-800">5. Empresa (opcional)</h3>
+                  <select
+                    value={projectId}
+                    onChange={(e) => setProjectId(e.target.value)}
+                    className="w-full max-w-xs rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-orange-500 focus:outline-none"
+                  >
+                    <option value="">Sin empresa</option>
+                    {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <p className="mt-1 text-xs text-slate-500">Se asigna a todos los contactos que se creen en esta importación.</p>
+                </div>
+              )}
 
               <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
                 <button onClick={onClose} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">

@@ -6,8 +6,10 @@ import TaskModal from '../components/TaskModal';
 import ProjectMembersModal from '../components/ProjectMembersModal';
 import KanbanBoard from '../components/KanbanBoard';
 import NewClientModal from '../components/NewClientModal';
+import ImportClientsModal from '../components/ImportClientsModal';
 import StatusBadge from '../components/StatusBadge';
 import Icon, { Avatar } from '../components/Icon';
+import { useAuth } from '../context/AuthContext';
 
 const TABS = [
   { key: 'tasks', label: 'Tareas', icon: 'tasks' },
@@ -62,21 +64,29 @@ function BarList({ items, emptyText }) {
 }
 
 function ClientsTab({ projectId }) {
+  const { user } = useAuth();
+  const canManageAgents = user.role !== 'AGENT';
   const [statuses, setStatuses] = useState([]);
+  const [agents, setAgents] = useState([]);
   const [clients, setClients] = useState([]);
+  const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [showNewModal, setShowNewModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
 
   const fetchClients = useCallback(() => {
     setLoading(true);
-    return api.get('/clients', { params: { projectId, pageSize: 200 } })
+    return api.get('/clients', { params: { projectId, search: search || undefined, pageSize: 200 } })
       .then((res) => setClients(res.data.items))
       .finally(() => setLoading(false));
-  }, [projectId]);
+  }, [projectId, search]);
 
   useEffect(() => {
     api.get('/statuses').then((res) => setStatuses(res.data));
-  }, []);
+    if (canManageAgents) {
+      api.get('/users').then((res) => setAgents(res.data.filter((u) => u.active))).catch(() => {});
+    }
+  }, [canManageAgents]);
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
   async function handleDropClient(clientId, newStatusId) {
@@ -88,33 +98,56 @@ function ClientsTab({ projectId }) {
     }
   }
 
-  if (loading) {
-    return (
-      <div className="flex h-48 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-orange-200 border-t-orange-600" />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
-        <button
-          onClick={() => setShowNewModal(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-orange-600/25 transition hover:bg-orange-700"
-        >
-          <Icon name="plus" className="h-4 w-4" />
-          Nuevo cliente
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="relative">
+          <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar en esta empresa..."
+            className="w-64 rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+          >
+            <Icon name="upload" className="h-4 w-4" />
+            Importar Excel
+          </button>
+          <button
+            onClick={() => setShowNewModal(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-orange-600/25 transition hover:bg-orange-700"
+          >
+            <Icon name="plus" className="h-4 w-4" />
+            Nuevo cliente
+          </button>
+        </div>
       </div>
-      <KanbanBoard statuses={statuses} clients={clients} onDropClient={handleDropClient} />
+      {loading ? (
+        <div className="flex h-48 items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-orange-200 border-t-orange-600" />
+        </div>
+      ) : (
+        <KanbanBoard statuses={statuses} clients={clients} onDropClient={handleDropClient} />
+      )}
       {showNewModal && (
         <NewClientModal
           statuses={statuses}
-          agents={[]}
+          agents={agents}
           lockedProjectId={projectId}
           onClose={() => setShowNewModal(false)}
           onCreated={() => fetchClients()}
+        />
+      )}
+      {showImportModal && (
+        <ImportClientsModal
+          lockedProjectId={projectId}
+          onClose={() => setShowImportModal(false)}
+          onImported={() => fetchClients()}
         />
       )}
     </div>

@@ -17,7 +17,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(email, password);
-      navigate('/', { replace: true });
+      navigate('/projects', { replace: true });
     } catch {
       setError('Correo o contraseña incorrectos.');
     } finally {
