@@ -1,7 +1,7 @@
 const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
 const { agentsByLoad, pickAutoAssignAgent } = require('../utils/autoAssign');
-const { clientScopeFilter } = require('../utils/clientScope');
+const { clientScopeFilter, myFollowUpScopeFilter } = require('../utils/clientScope');
 
 // Normaliza teléfonos a solo dígitos para comparar duplicados
 // ("8888-1234" y "88881234" deben coincidir).
@@ -264,7 +264,7 @@ async function dailyTasks(req, res) {
   const { projectId } = req.query;
 
   const where = {
-    ...(await clientScopeFilter(req.user)),
+    ...(await myFollowUpScopeFilter(req.user)),
     ...(projectId ? { projectId } : {}),
     nextFollowUpAt: { gte: start, lte: end },
   };
@@ -280,7 +280,7 @@ async function dailyTasks(req, res) {
 async function rangeTasks(req, res) {
   const { start, end, projectId } = req.query;
   const where = {
-    ...(await clientScopeFilter(req.user)),
+    ...(await myFollowUpScopeFilter(req.user)),
     ...(projectId ? { projectId } : {}),
     nextFollowUpAt: { gte: new Date(start), lte: new Date(end) },
   };
@@ -299,7 +299,7 @@ async function overdueTasks(req, res) {
   const { start } = businessDayBounds();
   const { projectId } = req.query;
   const where = {
-    ...(await clientScopeFilter(req.user)),
+    ...(await myFollowUpScopeFilter(req.user)),
     ...(projectId ? { projectId } : {}),
     nextFollowUpAt: { lt: start },
   };
@@ -319,7 +319,7 @@ async function uncontactedLeads(req, res) {
 
   const items = await prisma.client.findMany({
     where: {
-      ...(await clientScopeFilter(req.user)),
+      ...(await myFollowUpScopeFilter(req.user)),
       lastContactedAt: null,
       createdAt: { lt: threshold },
     },
@@ -336,7 +336,7 @@ async function staleClients(req, res) {
 
   const items = await prisma.client.findMany({
     where: {
-      ...(await clientScopeFilter(req.user)),
+      ...(await myFollowUpScopeFilter(req.user)),
       lastContactedAt: { lt: threshold },
     },
     include: { status: true, assignedAgent: { select: { id: true, fullName: true } } },
