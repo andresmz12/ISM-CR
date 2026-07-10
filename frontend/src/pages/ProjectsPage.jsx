@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import NewProjectModal from '../components/NewProjectModal';
+import CopyableId from '../components/CopyableId';
 import Icon, { Avatar } from '../components/Icon';
 
 export default function ProjectsPage() {
@@ -69,7 +70,10 @@ export default function ProjectsPage() {
               )}
             </div>
             <h2 className="mt-3 text-base font-semibold text-slate-900">{p.name}</h2>
-            {p.description && <p className="mt-1 line-clamp-2 text-sm text-slate-500">{p.description}</p>}
+            <div className="mt-1.5">
+              <CopyableId id={p.id} label="ID del proyecto" />
+            </div>
+            {p.description && <p className="mt-2 line-clamp-2 text-sm text-slate-500">{p.description}</p>}
             <div className="mt-4 flex items-center justify-between">
               <div className="flex -space-x-2">
                 {p.members.slice(0, 4).map((m) => (

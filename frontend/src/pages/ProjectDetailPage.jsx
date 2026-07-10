@@ -8,6 +8,7 @@ import KanbanBoard from '../components/KanbanBoard';
 import NewClientModal from '../components/NewClientModal';
 import ImportClientsModal from '../components/ImportClientsModal';
 import StatusBadge from '../components/StatusBadge';
+import CopyableId from '../components/CopyableId';
 import Icon, { Avatar } from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 
@@ -315,7 +316,10 @@ export default function ProjectDetailPage() {
             </span>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">{project.name}</h1>
-              {project.description && <p className="mt-1 text-sm text-slate-500">{project.description}</p>}
+              <div className="mt-1.5">
+                <CopyableId id={project.id} label="ID del proyecto" />
+              </div>
+              {project.description && <p className="mt-2 text-sm text-slate-500">{project.description}</p>}
               <p className="mt-1 text-sm text-slate-500">{project._count?.clients ?? 0} clientes</p>
               {project.repoUrl && (
                 <a href={project.repoUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-orange-600">
