@@ -20,8 +20,11 @@ router.use(requireApiKey);
  *       200: { description: Client detail }
  */
 router.get('/clients/:id', asyncHandler(async (req, res) => {
-  const client = await prisma.client.findUnique({
-    where: { id: req.params.id },
+  // Una llave sin projectId es global (legacy); una con projectId solo ve clientes
+  // de ese proyecto — así una integración de un proyecto no puede leer/enumerar
+  // datos de otro solo por adivinar el UUID de un cliente ajeno.
+  const client = await prisma.client.findFirst({
+    where: { id: req.params.id, ...(req.apiKey.projectId ? { projectId: req.apiKey.projectId } : {}) },
     include: { status: true },
   });
   if (!client) return res.status(404).json({ error: 'Client not found' });
@@ -43,7 +46,9 @@ const statusUpdateSchema = z.object({ statusId: z.string().uuid(), note: z.strin
 router.post('/clients/:id/status', validate(statusUpdateSchema), asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { statusId, note } = req.body;
-  const client = await prisma.client.findUnique({ where: { id } });
+  const client = await prisma.client.findFirst({
+    where: { id, ...(req.apiKey.projectId ? { projectId: req.apiKey.projectId } : {}) },
+  });
   if (!client) return res.status(404).json({ error: 'Client not found' });
 
   const statusChanged = statusId !== client.statusId;
@@ -107,12 +112,20 @@ function normalizePhoneOrNull(p) {
 router.post('/leads', validate(leadSchema), asyncHandler(async (req, res) => {
   const { fullName, phone, email, source, notes } = req.body;
   const norm = normalizePhoneOrNull(phone);
+  // Una llave con projectId propio manda a ese proyecto (en vez del default global);
+  // también acota el dedupe por teléfono al mismo proyecto, para que una llave
+  // scoped no pueda descubrir/tocar un cliente de otro proyecto solo por coincidir
+  // el número de teléfono.
+  const targetProjectId = req.apiKey.projectId || process.env.LEADS_DEFAULT_PROJECT_ID || undefined;
 
   // Dedupe por teléfono normalizado: si el lead ya existe, se registra la nota
   // como interacción en vez de crear un duplicado.
   const existing = norm
     ? await prisma.client.findFirst({
-        where: { OR: [{ phoneNormalized: norm }, { phoneAltNormalized: norm }] },
+        where: {
+          OR: [{ phoneNormalized: norm }, { phoneAltNormalized: norm }],
+          ...(req.apiKey.projectId ? { projectId: req.apiKey.projectId } : {}),
+        },
       })
     : null;
 
@@ -140,19 +153,23 @@ router.post('/leads', validate(leadSchema), asyncHandler(async (req, res) => {
   const defaultStatus = await prisma.status.findFirst({ where: { isDefault: true } });
   if (!defaultStatus) return res.status(500).json({ error: 'No hay estatus por defecto configurado' });
 
-  const assignedAgentId = (await pickAutoAssignAgent()) ?? undefined;
-
-  const client = await prisma.client.create({
-    data: {
-      fullName,
-      phone,
-      phoneNormalized: norm,
-      email: email || undefined,
-      source: source || 'web',
-      statusId: defaultStatus.id,
-      assignedAgentId,
-      projectId: process.env.LEADS_DEFAULT_PROJECT_ID || undefined,
-    },
+  // La elección de agente y la creación del cliente van en la misma transacción
+  // que sostiene el advisory lock del round-robin: así dos leads concurrentes no
+  // pueden leer la misma carga y terminar asignados al mismo agente (ver autoAssign.js).
+  const client = await prisma.$transaction(async (tx) => {
+    const assignedAgentId = (await pickAutoAssignAgent(tx)) ?? undefined;
+    return tx.client.create({
+      data: {
+        fullName,
+        phone,
+        phoneNormalized: norm,
+        email: email || undefined,
+        source: source || 'web',
+        statusId: defaultStatus.id,
+        assignedAgentId,
+        projectId: targetProjectId,
+      },
+    });
   });
 
   if (notes && systemUser) {
@@ -166,7 +183,7 @@ router.post('/leads', validate(leadSchema), asyncHandler(async (req, res) => {
     });
   }
 
-  res.status(201).json({ existing: false, clientId: client.id, assignedAgentId: assignedAgentId ?? null });
+  res.status(201).json({ existing: false, clientId: client.id, assignedAgentId: client.assignedAgentId ?? null });
 }));
 
 module.exports = router;

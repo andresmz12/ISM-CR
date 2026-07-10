@@ -1,5 +1,14 @@
 const prisma = require('../config/prisma');
 
+// IDs de los proyectos donde el usuario es miembro (ProjectMember).
+async function projectIdsForUser(userId) {
+  const memberships = await prisma.projectMember.findMany({
+    where: { userId },
+    select: { projectId: true },
+  });
+  return memberships.map((m) => m.projectId);
+}
+
 // Alcance de un AGENT sobre Client: solo sus clientes asignados, y si el cliente
 // tiene projectId, solo si el agente es miembro de ese proyecto (ProjectMember).
 // Los clientes sin projectId (todo el dataset previo a esta columna) siguen
@@ -8,11 +17,7 @@ const prisma = require('../config/prisma');
 async function clientScopeFilter(user) {
   if (user.role === 'ADMIN' || user.role === 'SUPERVISOR') return {};
 
-  const memberships = await prisma.projectMember.findMany({
-    where: { userId: user.sub },
-    select: { projectId: true },
-  });
-  const projectIds = memberships.map((m) => m.projectId);
+  const projectIds = await projectIdsForUser(user.sub);
 
   return {
     assignedAgentId: user.sub,
@@ -23,4 +28,4 @@ async function clientScopeFilter(user) {
   };
 }
 
-module.exports = { clientScopeFilter };
+module.exports = { clientScopeFilter, projectIdsForUser };

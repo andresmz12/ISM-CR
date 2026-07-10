@@ -80,40 +80,40 @@ model Status {
 }
 
 model Client {
-  id              String    @id @default(uuid())
-  fullName        String
-  phone           String
-  phoneAlt        String?
+  id                 String    @id @default(uuid())
+  fullName           String
+  phone              String
+  phoneAlt           String?
   // Solo dígitos, para detección de duplicados independiente del formato
   // ("8888-1234" y "88881234" deben coincidir). Se mantienen desde el backend.
   phoneNormalized    String?
   phoneAltNormalized String?
-  email           String?
-  address         String?
-  statusId        String
-  status          Status    @relation(fields: [statusId], references: [id])
-  assignedAgentId String?
-  assignedAgent   User?     @relation("AssignedAgent", fields: [assignedAgentId], references: [id])
-  source          String?
-  tags            String[]  @default([])
-  nextFollowUpAt  DateTime?
+  email              String?
+  address            String?
+  statusId           String
+  status             Status    @relation(fields: [statusId], references: [id])
+  assignedAgentId    String?
+  assignedAgent      User?     @relation("AssignedAgent", fields: [assignedAgentId], references: [id])
+  source             String?
+  tags               String[]  @default([])
+  nextFollowUpAt     DateTime?
   // Última interacción registrada (denormalizado): base de las alertas de
   // "lead sin contactar" y "cliente frío" sin joins costosos.
-  lastContactedAt DateTime?
-  companyId       String?
-  company         Company?  @relation(fields: [companyId], references: [id])
+  lastContactedAt    DateTime?
+  companyId          String?
+  company            Company?  @relation(fields: [companyId], references: [id])
   // Proyecto/negocio al que pertenece este cliente (Paquetería App, DSM Consulting, etc.).
   // Opcional: los clientes existentes antes de esta columna se quedan en NULL y se
   // tratan como "visibles sin restricción de proyecto" (ver clientScope.js).
-  projectId       String?
-  project         Project?  @relation(fields: [projectId], references: [id])
+  projectId          String?
+  project            Project?  @relation(fields: [projectId], references: [id])
   // Destinatario de la recogida más reciente (RECOGIDA-PAQ). Se sobreescribe en
   // cada webhook, igual que `address` — un cliente puede pedir varias recogidas
   // con destinatarios distintos y esto solo refleja la más reciente.
-  recipientName    String?
-  recipientAddress String?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  recipientName      String?
+  recipientAddress   String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   interactions Interaction[]
   assignments  ClientAssignment[]
@@ -215,8 +215,27 @@ model ApiKey {
   active     Boolean   @default(true)
   createdAt  DateTime  @default(now())
   lastUsedAt DateTime?
+  // Si se define, esta llave solo puede leer/escribir clientes de este proyecto
+  // (endpoints bajo /integrations/*). Null = llave global (comportamiento legacy).
+  projectId  String?
+  project    Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
+  @@index([projectId])
   @@map("api_keys")
+}
+
+// Dedupe de webhooks entrantes: cada integración manda un identificador de evento
+// propio (call.id de ZyraVoice, deliveryId de RECOGIDA-PAQ). Antes de procesar, se
+// intenta insertar una fila con esa clave; si ya existe (P2002), el evento es un
+// reintento y se responde 200 sin volver a crear interacciones/auditoría duplicadas.
+model WebhookEvent {
+  id         String   @id @default(uuid())
+  source     String
+  externalId String
+  createdAt  DateTime @default(now())
+
+  @@unique([source, externalId])
+  @@map("webhook_events")
 }
 
 model Company {
@@ -274,6 +293,7 @@ model Project {
   sections ProjectSection[]
   tasks    ProjectTask[]
   clients  Client[]
+  apiKeys  ApiKey[]
 
   @@index([name])
   @@map("projects")

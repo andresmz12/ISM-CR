@@ -2,6 +2,7 @@ const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
 const { fetchPickupRequestDetail, RecogidaPaqApiError } = require('../services/recogidaPaqClient');
 const { pickAutoAssignAgent } = require('../utils/autoAssign');
+const { recordWebhookEventOnce } = require('../utils/webhookDedupe');
 
 const STATUS_MAP = {
   PENDING: 'Pendiente de recogida',
@@ -41,18 +42,27 @@ async function findSystemUser() {
 }
 
 async function handlePickupRequest(req, res) {
-  const { event, pickupRequestId, trackingCode, status: webhookStatus } = req.body;
+  const { event, pickupRequestId, trackingCode, status: webhookStatus, deliveryId } = req.body;
+
+  // RECOGIDA-PAQ reintenta el webhook ante timeouts/5xx; deliveryId identifica la
+  // entrega del webhook en sí (no el pickup), así que dedupe por él evita volver a
+  // crear la interacción/auditoría de un mismo evento reenviado.
+  const isNewEvent = await recordWebhookEventOnce('recogidapaq.pickup_request', deliveryId);
+  if (!isNewEvent) {
+    return res.json({ duplicate: true });
+  }
 
   let detail;
   try {
     detail = await fetchPickupRequestDetail(pickupRequestId);
   } catch (err) {
     if (err instanceof RecogidaPaqApiError) {
-      // Log temporal de diagnóstico: sin esto, un 502 no deja rastro de por qué
-      // falló la llamada saliente (timeout, DNS, API key inválida, 404, etc).
+      // Diagnóstico de errores 5xx al llamar a RECOGIDA-PAQ: se registra la causa
+      // (status HTTP, mensaje) sin volcar el responseBody crudo, que puede traer
+      // la propia API key o datos del contacto en el mensaje de error de RECOGIDA-PAQ.
       console.error(
         `[pickup-requests] 502 al llamar a RECOGIDA-PAQ — url=${err.url}, status=${err.status ?? 'sin respuesta HTTP'}, ` +
-        `message=${err.message}, responseBody=${err.responseBody ?? 'n/a'}`
+        `message=${err.message}, pickupRequestId=${pickupRequestId}`
       );
       return res.status(502).json({ error: 'No se pudo obtener el detalle de RECOGIDA-PAQ' });
     }
@@ -63,7 +73,8 @@ async function handlePickupRequest(req, res) {
   const statusName = STATUS_MAP[statusValue];
   if (!statusName) {
     const error = `Estatus desconocido: ${statusValue}`;
-    console.error(`[pickup-requests] 400: ${error} — pickupRequestId=${pickupRequestId}, detail=${JSON.stringify(detail)}`);
+    // No se loguea `detail` completo: trae nombre/teléfono/dirección del contacto y destinatario (PII).
+    console.error(`[pickup-requests] 400: ${error} — pickupRequestId=${pickupRequestId}`);
     return res.status(400).json({ error });
   }
 
@@ -75,7 +86,7 @@ async function handlePickupRequest(req, res) {
   const recipientPhone = detail.recipientPhone;
   if (!contactName || !contactPhone) {
     const error = 'RECOGIDA-PAQ no devolvió contactName/contactPhone';
-    console.error(`[pickup-requests] 400: ${error} — pickupRequestId=${pickupRequestId}, detail=${JSON.stringify(detail)}`);
+    console.error(`[pickup-requests] 400: ${error} — pickupRequestId=${pickupRequestId}, camposRecibidos=${Object.keys(detail).join(',')}`);
     return res.status(400).json({ error });
   }
 
@@ -84,10 +95,14 @@ async function handlePickupRequest(req, res) {
     ? await prisma.client.findFirst({ where: { OR: [{ phoneNormalized: norm }, { phoneAltNormalized: norm }] } })
     : null;
   const systemUser = await findSystemUser();
-  // Round-robin solo para clientes nuevos — uno ya existente nunca cambia de agente por este webhook.
-  const autoAssignedAgentId = existingClient ? undefined : ((await pickAutoAssignAgent()) ?? undefined);
 
   const result = await prisma.$transaction(async (tx) => {
+    // Round-robin solo para clientes nuevos — uno ya existente nunca cambia de agente
+    // por este webhook. Se elige dentro de la misma transacción que crea el cliente,
+    // bajo el advisory lock de pickAutoAssignAgent, para que dos webhooks concurrentes
+    // no se asignen al mismo agente (ver autoAssign.js).
+    const autoAssignedAgentId = existingClient ? undefined : ((await pickAutoAssignAgent(tx)) ?? undefined);
+
     let status = await tx.status.findUnique({ where: { name: statusName } });
     if (!status) {
       const maxOrder = await tx.status.aggregate({ _max: { order: true } });

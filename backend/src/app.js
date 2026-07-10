@@ -29,7 +29,14 @@ const app = express();
 app.set('trust proxy', 1);
 
 app.use(helmet());
-app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') ?? '*', credentials: true }));
+// Sin CORS_ORIGIN definido: en producción no se refleja ningún origen (bloqueado
+// por default, nunca '*' con credentials); en desarrollo se permite cualquiera
+// para no fricasear el flujo local.
+const corsOrigins = process.env.CORS_ORIGIN?.split(',').map((o) => o.trim()).filter(Boolean);
+app.use(cors({
+  origin: corsOrigins ?? (process.env.NODE_ENV === 'production' ? false : true),
+  credentials: true,
+}));
 // Se guardan los bytes crudos del body para poder verificar la firma HMAC
 // de webhooks externos (RECOGIDA-PAQ) antes de que Express los reserialice.
 app.use(express.json({ limit: '5mb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
@@ -40,6 +47,13 @@ app.use('/api', limiter);
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, message: { error: 'Demasiados intentos, intenta más tarde' } });
 app.use('/api/auth/login', loginLimiter);
+
+// Límite propio para las rutas de integración autenticadas por API key: una llave
+// filtrada no debería poder usarse para scraping masivo bajo el límite genérico
+// (1000 req/15min compartido por toda /api).
+const integrationsLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, keyGenerator: (req) => req.headers['x-api-key'] || req.ip });
+app.use('/api/integrations/clients', integrationsLimiter);
+app.use('/api/integrations/leads', integrationsLimiter);
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 

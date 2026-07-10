@@ -140,31 +140,35 @@ async function createClient(req, res) {
 
   const duplicates = await findDuplicates(phone, phoneAlt);
   // Un AGENT no puede asignar el cliente a otro agente al crearlo.
-  let finalAssignedAgentId = req.user.role === 'AGENT' ? req.user.sub : (assignedAgentId ?? undefined);
-  // Round-robin: si el creador no es agente, no eligió a nadie y pidió
-  // auto-asignar, se asigna al agente activo con menos clientes.
-  if (!finalAssignedAgentId && autoAssign) {
-    finalAssignedAgentId = (await pickAutoAssignAgent()) ?? undefined;
-  }
+  const preAssignedAgentId = req.user.role === 'AGENT' ? req.user.sub : (assignedAgentId ?? undefined);
 
-  const client = await prisma.client.create({
-    data: {
-      fullName,
-      phone,
-      phoneAlt,
-      phoneNormalized: normalizePhoneOrNull(phone),
-      phoneAltNormalized: normalizePhoneOrNull(phoneAlt),
-      email,
-      address,
-      statusId: finalStatusId,
-      assignedAgentId: finalAssignedAgentId,
-      companyId,
-      projectId,
-      source,
-      tags: tags ?? [],
-      nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : undefined,
-    },
-    include: { status: true, assignedAgent: { select: { id: true, fullName: true } }, company: { select: { id: true, name: true } } },
+  // La elección de agente (si aplica auto-asignación) y la creación van en la misma
+  // transacción que sostiene el advisory lock del round-robin (ver autoAssign.js),
+  // para que creaciones concurrentes no terminen asignadas al mismo agente.
+  const client = await prisma.$transaction(async (tx) => {
+    let finalAssignedAgentId = preAssignedAgentId;
+    if (!finalAssignedAgentId && autoAssign) {
+      finalAssignedAgentId = (await pickAutoAssignAgent(tx)) ?? undefined;
+    }
+    return tx.client.create({
+      data: {
+        fullName,
+        phone,
+        phoneAlt,
+        phoneNormalized: normalizePhoneOrNull(phone),
+        phoneAltNormalized: normalizePhoneOrNull(phoneAlt),
+        email,
+        address,
+        statusId: finalStatusId,
+        assignedAgentId: finalAssignedAgentId,
+        companyId,
+        projectId,
+        source,
+        tags: tags ?? [],
+        nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : undefined,
+      },
+      include: { status: true, assignedAgent: { select: { id: true, fullName: true } }, company: { select: { id: true, name: true } } },
+    });
   });
 
   res.status(201).json({ ...client, duplicateWarning: duplicates.length > 0 ? duplicates : undefined });
@@ -353,9 +357,10 @@ async function mergeClients(req, res) {
   const { sourceId } = req.body;
   if (sourceId === id) return res.status(400).json({ error: 'No se puede fusionar un cliente consigo mismo' });
 
+  const scope = await clientScopeFilter(req.user);
   const [target, source] = await Promise.all([
-    prisma.client.findUnique({ where: { id } }),
-    prisma.client.findUnique({ where: { id: sourceId } }),
+    prisma.client.findFirst({ where: { id, ...scope } }),
+    prisma.client.findFirst({ where: { id: sourceId, ...scope } }),
   ]);
   if (!target || !source) return res.status(404).json({ error: 'Client not found' });
 

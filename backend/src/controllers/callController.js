@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
+const { recordWebhookEventOnce } = require('../utils/webhookDedupe');
 
 function normalizePhoneOrNull(p) {
   const n = String(p ?? '').replace(/\D/g, '');
@@ -33,6 +34,14 @@ function buildCallNotes(call) {
 // plan) — se asume un hueco de sincronización, no un lead genuino.
 async function handleCallEnded(req, res) {
   const { prospect, call } = req.body;
+
+  // ZyraVoice reintenta el webhook si no recibe 2xx a tiempo; sin esto, un
+  // reintento duplicaría la interacción de la llamada cada vez.
+  const isNewEvent = await recordWebhookEventOnce('zyravoice.call_ended', call.id);
+  if (!isNewEvent) {
+    return res.json({ existing: true, duplicate: true });
+  }
+
   const norm = normalizePhoneOrNull(prospect.phone);
   const existingClient = norm
     ? await prisma.client.findFirst({ where: { OR: [{ phoneNormalized: norm }, { phoneAltNormalized: norm }] } })

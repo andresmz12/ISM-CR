@@ -4,8 +4,10 @@ import Icon from '../components/Icon';
 
 export default function AdminApiKeysPage() {
   const [keys, setKeys] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
+  const [projectId, setProjectId] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   // La llave en claro solo se muestra una vez, justo después de crearla.
@@ -17,17 +19,21 @@ export default function AdminApiKeysPage() {
     return api.get('/api-keys').then((res) => setKeys(res.data)).finally(() => setLoading(false));
   }
 
-  useEffect(() => { fetchKeys(); }, []);
+  useEffect(() => {
+    fetchKeys();
+    api.get('/projects').then((res) => setProjects(res.data)).catch(() => {});
+  }, []);
 
   async function handleCreate(e) {
     e.preventDefault();
     setError('');
     setSaving(true);
     try {
-      const res = await api.post('/api-keys', { name });
+      const res = await api.post('/api-keys', { name, projectId: projectId || undefined });
       setNewKey(res.data);
       setCopied(false);
       setName('');
+      setProjectId('');
       fetchKeys();
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo crear la llave.');
@@ -74,6 +80,16 @@ export default function AdminApiKeysPage() {
             <input required value={name} onChange={(e) => setName(e.target.value)}
               placeholder="Formulario del sitio web" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
           </div>
+          <div className="min-w-48">
+            <label className="mb-1 block text-xs font-medium text-slate-700">Proyecto (opcional)</label>
+            <select value={projectId} onChange={(e) => setProjectId(e.target.value)}
+              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm">
+              <option value="">Global (todos los proyectos)</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
           <button type="submit" disabled={saving}
             className="rounded-md bg-orange-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-50">
             {saving ? 'Creando...' : 'Crear llave'}
@@ -103,6 +119,7 @@ export default function AdminApiKeysPage() {
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-4 py-2 text-left font-medium text-slate-500">Nombre</th>
+                <th className="px-4 py-2 text-left font-medium text-slate-500">Proyecto</th>
                 <th className="px-4 py-2 text-left font-medium text-slate-500">Estado</th>
                 <th className="px-4 py-2 text-left font-medium text-slate-500">Último uso</th>
                 <th className="px-4 py-2 text-left font-medium text-slate-500">Creada</th>
@@ -111,10 +128,11 @@ export default function AdminApiKeysPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">Cargando...</td></tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">Cargando...</td></tr>
               ) : keys.map((k) => (
                 <tr key={k.id}>
                   <td className="px-4 py-2 font-medium text-slate-900">{k.name}</td>
+                  <td className="px-4 py-2 text-slate-600">{k.project?.name ?? <span className="text-slate-400">Global</span>}</td>
                   <td className="px-4 py-2">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${k.active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                       {k.active ? 'Activa' : 'Inactiva'}
@@ -135,7 +153,7 @@ export default function AdminApiKeysPage() {
                 </tr>
               ))}
               {!loading && keys.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-6 text-center text-slate-400">Sin llaves creadas.</td></tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-slate-400">Sin llaves creadas.</td></tr>
               )}
             </tbody>
           </table>

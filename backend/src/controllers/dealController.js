@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
+const { projectIdsForUser } = require('../utils/clientScope');
 
 const include = {
   client: { select: { id: true, fullName: true, phone: true } },
@@ -7,16 +8,24 @@ const include = {
   owner: { select: { id: true, fullName: true } },
 };
 
-function scopeFilter(user) {
-  if (user.role === 'AGENT') return { ownerId: user.sub };
-  return {};
+// Igual que clientScopeFilter: un AGENT solo ve sus propios deals, y si el deal
+// está ligado a un cliente con projectId, solo si es miembro de ese proyecto.
+// Deals sin cliente o con cliente sin projectId quedan visibles sin restricción.
+async function scopeFilter(user) {
+  if (user.role === 'ADMIN' || user.role === 'SUPERVISOR') return {};
+
+  const projectIds = await projectIdsForUser(user.sub);
+  return {
+    ownerId: user.sub,
+    AND: [{ OR: [{ clientId: null }, { client: { OR: [{ projectId: null }, { projectId: { in: projectIds } }] } }] }],
+  };
 }
 
 const CLOSED_STAGES = ['WON', 'LOST'];
 
 async function listDeals(req, res) {
   const { stage, ownerId, clientId, companyId } = req.query;
-  const where = { ...scopeFilter(req.user) };
+  const where = { ...(await scopeFilter(req.user)) };
   if (stage) where.stage = stage;
   if (ownerId && req.user.role !== 'AGENT') where.ownerId = ownerId;
   if (clientId) where.clientId = clientId;
@@ -28,7 +37,7 @@ async function listDeals(req, res) {
 
 async function getDeal(req, res) {
   const { id } = req.params;
-  const deal = await prisma.deal.findFirst({ where: { id, ...scopeFilter(req.user) }, include });
+  const deal = await prisma.deal.findFirst({ where: { id, ...(await scopeFilter(req.user)) }, include });
   if (!deal) return res.status(404).json({ error: 'Deal not found' });
   res.json(deal);
 }
@@ -56,7 +65,7 @@ async function createDeal(req, res) {
 
 async function updateDeal(req, res) {
   const { id } = req.params;
-  const existing = await prisma.deal.findFirst({ where: { id, ...scopeFilter(req.user) } });
+  const existing = await prisma.deal.findFirst({ where: { id, ...(await scopeFilter(req.user)) } });
   if (!existing) return res.status(404).json({ error: 'Deal not found' });
 
   const { title, clientId, companyId, amount, stage, ownerId, expectedCloseDate, notes } = req.body;
@@ -81,7 +90,7 @@ async function updateDeal(req, res) {
 
 async function deleteDeal(req, res) {
   const { id } = req.params;
-  const existing = await prisma.deal.findFirst({ where: { id, ...scopeFilter(req.user) } });
+  const existing = await prisma.deal.findFirst({ where: { id, ...(await scopeFilter(req.user)) } });
   if (!existing) return res.status(404).json({ error: 'Deal not found' });
   await prisma.deal.delete({ where: { id } });
   res.status(204).send();

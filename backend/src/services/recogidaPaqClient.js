@@ -31,9 +31,11 @@ async function fetchPickupRequestDetail(pickupRequestId) {
   }
 
   if (!response.ok) {
-    // best-effort: el body del error de RECOGIDA-PAQ ayuda a diagnosticar (ej. "API key inválida").
+    // El body del error de RECOGIDA-PAQ se trunca antes de propagarse a los logs:
+    // puede incluir la propia API key ecoada en mensajes tipo "API key inválida: xxx".
     const responseBody = await response.text().catch(() => undefined);
-    throw new RecogidaPaqApiError(`RECOGIDA-PAQ respondió ${response.status}`, response.status, url, responseBody);
+    const truncatedBody = responseBody ? responseBody.slice(0, 200) : undefined;
+    throw new RecogidaPaqApiError(`RECOGIDA-PAQ respondió ${response.status}`, response.status, url, truncatedBody);
   }
 
   return response.json();

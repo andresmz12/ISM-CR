@@ -7,10 +7,15 @@ const { validate } = require('../utils/validate');
 const router = express.Router();
 router.use(requireAuth, requireRole('ADMIN'));
 
-const createSchema = z.object({ name: z.string().min(1).max(80) });
+const createSchema = z.object({
+  name: z.string().min(1).max(80),
+  // Si se omite, la llave queda global (ve/edita clientes de cualquier proyecto).
+  projectId: z.string().uuid().optional(),
+});
 const updateSchema = z.object({
   name: z.string().min(1).max(80).optional(),
   active: z.boolean().optional(),
+  projectId: z.string().uuid().nullable().optional(),
 });
 
 /**
