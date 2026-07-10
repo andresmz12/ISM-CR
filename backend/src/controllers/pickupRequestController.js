@@ -29,6 +29,12 @@ async function handlePickupRequest(req, res) {
     detail = await fetchPickupRequestDetail(pickupRequestId);
   } catch (err) {
     if (err instanceof RecogidaPaqApiError) {
+      // Log temporal de diagnóstico: sin esto, un 502 no deja rastro de por qué
+      // falló la llamada saliente (timeout, DNS, API key inválida, 404, etc).
+      console.error(
+        `[pickup-requests] 502 al llamar a RECOGIDA-PAQ — url=${err.url}, status=${err.status ?? 'sin respuesta HTTP'}, ` +
+        `message=${err.message}, responseBody=${err.responseBody ?? 'n/a'}`
+      );
       return res.status(502).json({ error: 'No se pudo obtener el detalle de RECOGIDA-PAQ' });
     }
     throw err;
