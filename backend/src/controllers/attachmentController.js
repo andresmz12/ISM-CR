@@ -1,10 +1,6 @@
 const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
-
-function scopeFilter(user) {
-  if (user.role === 'AGENT') return { assignedAgentId: user.sub };
-  return {};
-}
+const { clientScopeFilter } = require('../utils/clientScope');
 
 const listSelect = {
   id: true,
@@ -16,7 +12,7 @@ const listSelect = {
 };
 
 async function findScopedClient(req) {
-  return prisma.client.findFirst({ where: { id: req.params.clientId, ...scopeFilter(req.user) } });
+  return prisma.client.findFirst({ where: { id: req.params.clientId, ...(await clientScopeFilter(req.user)) } });
 }
 
 async function listAttachments(req, res) {

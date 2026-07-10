@@ -1,6 +1,7 @@
 const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
 const { agentsByLoad, pickAutoAssignAgent } = require('../utils/autoAssign');
+const { clientScopeFilter } = require('../utils/clientScope');
 
 // Normaliza teléfonos a solo dígitos para comparar duplicados
 // ("8888-1234" y "88881234" deben coincidir).
@@ -51,13 +52,6 @@ function businessDayBounds(now = new Date()) {
   return { start, end };
 }
 
-function scopeFilter(user) {
-  if (user.role === 'AGENT') {
-    return { assignedAgentId: user.sub };
-  }
-  return {};
-}
-
 async function findDuplicates(phone, phoneAlt, excludeId) {
   // Compara sobre las columnas normalizadas para que "8888-1234" y "88881234"
   // cuenten como el mismo número sin importar cómo se capturaron.
@@ -75,7 +69,7 @@ async function findDuplicates(phone, phoneAlt, excludeId) {
 
 async function listClients(req, res) {
   const { search, statusId, assignedAgentId, tag, page = '1', pageSize = '25' } = req.query;
-  const where = { ...scopeFilter(req.user) };
+  const where = { ...(await clientScopeFilter(req.user)) };
 
   if (search) {
     where.OR = [
@@ -118,7 +112,7 @@ async function listClients(req, res) {
 async function getClient(req, res) {
   const { id } = req.params;
   const client = await prisma.client.findFirst({
-    where: { id, ...scopeFilter(req.user) },
+    where: { id, ...(await clientScopeFilter(req.user)) },
     include: {
       status: true,
       assignedAgent: { select: { id: true, fullName: true } },
@@ -135,7 +129,7 @@ async function getClient(req, res) {
 }
 
 async function createClient(req, res) {
-  const { fullName, phone, phoneAlt, email, address, statusId, assignedAgentId, companyId, source, tags, nextFollowUpAt, autoAssign } = req.body;
+  const { fullName, phone, phoneAlt, email, address, statusId, assignedAgentId, companyId, projectId, source, tags, nextFollowUpAt, autoAssign } = req.body;
   let finalStatusId = statusId;
   if (!finalStatusId) {
     const def = await prisma.status.findFirst({ where: { isDefault: true } });
@@ -163,6 +157,7 @@ async function createClient(req, res) {
       statusId: finalStatusId,
       assignedAgentId: finalAssignedAgentId,
       companyId,
+      projectId,
       source,
       tags: tags ?? [],
       nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : undefined,
@@ -175,10 +170,10 @@ async function createClient(req, res) {
 
 async function updateClient(req, res) {
   const { id } = req.params;
-  const existing = await prisma.client.findFirst({ where: { id, ...scopeFilter(req.user) } });
+  const existing = await prisma.client.findFirst({ where: { id, ...(await clientScopeFilter(req.user)) } });
   if (!existing) return res.status(404).json({ error: 'Client not found' });
 
-  const { fullName, phone, phoneAlt, email, address, statusId, companyId, source, tags, nextFollowUpAt } = req.body;
+  const { fullName, phone, phoneAlt, email, address, statusId, companyId, projectId, source, tags, nextFollowUpAt } = req.body;
   const data = {};
   if (fullName !== undefined) data.fullName = fullName;
   if (phone !== undefined) {
@@ -193,6 +188,7 @@ async function updateClient(req, res) {
   if (address !== undefined) data.address = address;
   if (statusId !== undefined) data.statusId = statusId;
   if (companyId !== undefined) data.companyId = companyId;
+  if (projectId !== undefined) data.projectId = projectId;
   if (source !== undefined) data.source = source;
   if (tags !== undefined) data.tags = tags;
   if (nextFollowUpAt !== undefined) data.nextFollowUpAt = nextFollowUpAt ? new Date(nextFollowUpAt) : null;
@@ -221,7 +217,7 @@ async function updateClient(req, res) {
 
 async function deleteClient(req, res) {
   const { id } = req.params;
-  const existing = await prisma.client.findFirst({ where: { id, ...scopeFilter(req.user) } });
+  const existing = await prisma.client.findFirst({ where: { id, ...(await clientScopeFilter(req.user)) } });
   if (!existing) return res.status(404).json({ error: 'Client not found' });
   await prisma.client.delete({ where: { id } });
   res.status(204).send();
@@ -260,7 +256,7 @@ async function dailyTasks(req, res) {
   const { start, end } = businessDayBounds();
 
   const where = {
-    ...scopeFilter(req.user),
+    ...(await clientScopeFilter(req.user)),
     nextFollowUpAt: { gte: start, lte: end },
   };
 
@@ -275,7 +271,7 @@ async function dailyTasks(req, res) {
 async function rangeTasks(req, res) {
   const { start, end } = req.query;
   const where = {
-    ...scopeFilter(req.user),
+    ...(await clientScopeFilter(req.user)),
     nextFollowUpAt: { gte: new Date(start), lte: new Date(end) },
   };
 
@@ -292,7 +288,7 @@ async function overdueTasks(req, res) {
   // y así una tarea no aparece en ambas listas a la vez.
   const { start } = businessDayBounds();
   const where = {
-    ...scopeFilter(req.user),
+    ...(await clientScopeFilter(req.user)),
     nextFollowUpAt: { lt: start },
   };
 
@@ -311,7 +307,7 @@ async function uncontactedLeads(req, res) {
 
   const items = await prisma.client.findMany({
     where: {
-      ...scopeFilter(req.user),
+      ...(await clientScopeFilter(req.user)),
       lastContactedAt: null,
       createdAt: { lt: threshold },
     },
@@ -328,7 +324,7 @@ async function staleClients(req, res) {
 
   const items = await prisma.client.findMany({
     where: {
-      ...scopeFilter(req.user),
+      ...(await clientScopeFilter(req.user)),
       lastContactedAt: { lt: threshold },
     },
     include: { status: true, assignedAgent: { select: { id: true, fullName: true } } },
@@ -341,7 +337,7 @@ async function staleClients(req, res) {
 // Posibles duplicados de un cliente ya existente (por teléfono normalizado).
 async function clientDuplicates(req, res) {
   const { id } = req.params;
-  const client = await prisma.client.findFirst({ where: { id, ...scopeFilter(req.user) } });
+  const client = await prisma.client.findFirst({ where: { id, ...(await clientScopeFilter(req.user)) } });
   if (!client) return res.status(404).json({ error: 'Client not found' });
   const duplicates = await findDuplicates(client.phone, client.phoneAlt, id);
   res.json(duplicates);

@@ -22,6 +22,7 @@ const createSchema = z.object({
   statusId: z.string().uuid().optional(),
   assignedAgentId: z.string().uuid().optional(),
   companyId: z.string().uuid().optional(),
+  projectId: z.string().uuid().optional(),
   source: z.string().optional(),
   tags: z.array(z.string()).optional(),
   nextFollowUpAt: z.string().datetime().optional(),

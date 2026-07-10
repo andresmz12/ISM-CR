@@ -102,6 +102,11 @@ model Client {
   lastContactedAt DateTime?
   companyId       String?
   company         Company?  @relation(fields: [companyId], references: [id])
+  // Proyecto/negocio al que pertenece este cliente (Paquetería App, DSM Consulting, etc.).
+  // Opcional: los clientes existentes antes de esta columna se quedan en NULL y se
+  // tratan como "visibles sin restricción de proyecto" (ver clientScope.js).
+  projectId       String?
+  project         Project?  @relation(fields: [projectId], references: [id])
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -118,6 +123,7 @@ model Client {
   @@index([phoneAltNormalized])
   @@index([companyId])
   @@index([lastContactedAt])
+  @@index([projectId])
   @@map("clients")
 }
 
@@ -262,6 +268,7 @@ model Project {
   members  ProjectMember[]
   sections ProjectSection[]
   tasks    ProjectTask[]
+  clients  Client[]
 
   @@index([name])
   @@map("projects")

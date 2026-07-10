@@ -151,6 +151,7 @@ router.post('/leads', validate(leadSchema), asyncHandler(async (req, res) => {
       source: source || 'web',
       statusId: defaultStatus.id,
       assignedAgentId,
+      projectId: process.env.LEADS_DEFAULT_PROJECT_ID || undefined,
     },
   });
 

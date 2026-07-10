@@ -90,6 +90,7 @@ async function handlePickupRequest(req, res) {
           statusId: status.id,
           source: 'RECOGIDA-PAQ',
           lastContactedAt: new Date(),
+          projectId: process.env.RECOGIDA_PAQ_PROJECT_ID || undefined,
         },
       });
     }

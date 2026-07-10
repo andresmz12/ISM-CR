@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
+const { clientScopeFilter } = require('../utils/clientScope');
 
 // Búsqueda global: clientes, empresas y deals en paralelo, respetando el
 // scoping por rol (un AGENT solo ve sus clientes y sus deals).
@@ -7,7 +8,7 @@ async function globalSearch(req, res) {
   const q = String(req.query.q ?? '').trim();
   if (q.length < 2) return res.json({ clients: [], companies: [], deals: [] });
 
-  const clientScope = req.user.role === 'AGENT' ? { assignedAgentId: req.user.sub } : {};
+  const clientScope = await clientScopeFilter(req.user);
   const dealScope = req.user.role === 'AGENT' ? { ownerId: req.user.sub } : {};
   const contains = { contains: q, mode: 'insensitive' };
 

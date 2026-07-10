@@ -1,5 +1,6 @@
 const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
+const { clientScopeFilter } = require('../utils/clientScope');
 
 function dayKey(date) {
   return date.toISOString().slice(0, 10);
@@ -8,7 +9,7 @@ function dayKey(date) {
 async function overview(req, res) {
   const isAgent = req.user.role === 'AGENT';
   const dealScope = isAgent ? { ownerId: req.user.sub } : {};
-  const clientScope = isAgent ? { assignedAgentId: req.user.sub } : {};
+  const clientScope = await clientScopeFilter(req.user);
   const interactionScope = isAgent ? { userId: req.user.sub } : {};
 
   const since = new Date();

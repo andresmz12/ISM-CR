@@ -1,14 +1,10 @@
 const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
-
-function scopeFilter(user) {
-  if (user.role === 'AGENT') return { assignedAgentId: user.sub };
-  return {};
-}
+const { clientScopeFilter } = require('../utils/clientScope');
 
 async function listInteractions(req, res) {
   const { clientId } = req.params;
-  const client = await prisma.client.findFirst({ where: { id: clientId, ...scopeFilter(req.user) } });
+  const client = await prisma.client.findFirst({ where: { id: clientId, ...(await clientScopeFilter(req.user)) } });
   if (!client) return res.status(404).json({ error: 'Client not found' });
 
   const interactions = await prisma.interaction.findMany({
@@ -23,7 +19,7 @@ async function createInteraction(req, res) {
   const { clientId } = req.params;
   const { type, notes, resultStatusId, nextFollowUpAt } = req.body;
 
-  const client = await prisma.client.findFirst({ where: { id: clientId, ...scopeFilter(req.user) } });
+  const client = await prisma.client.findFirst({ where: { id: clientId, ...(await clientScopeFilter(req.user)) } });
   if (!client) return res.status(404).json({ error: 'Client not found' });
 
   const statusChanged = resultStatusId && resultStatusId !== client.statusId;

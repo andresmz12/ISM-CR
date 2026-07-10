@@ -1,8 +1,9 @@
 const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
+const { clientScopeFilter } = require('../utils/clientScope');
 
 async function summary(req, res) {
-  const scope = req.user.role === 'AGENT' ? { assignedAgentId: req.user.sub } : {};
+  const scope = await clientScopeFilter(req.user);
 
   const interactionScope = req.user.role === 'AGENT' ? { userId: req.user.sub } : {};
 
@@ -44,7 +45,7 @@ async function summary(req, res) {
 }
 
 async function exportClientsCsv(req, res) {
-  const scope = req.user.role === 'AGENT' ? { assignedAgentId: req.user.sub } : {};
+  const scope = await clientScopeFilter(req.user);
   const clients = await prisma.client.findMany({
     where: scope,
     include: { status: true, assignedAgent: { select: { fullName: true } } },
