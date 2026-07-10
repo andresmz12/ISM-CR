@@ -70,9 +70,11 @@ export default function ProjectsPage() {
               )}
             </div>
             <h2 className="mt-3 text-base font-semibold text-slate-900">{p.name}</h2>
-            <div className="mt-1.5">
-              <CopyableId id={p.id} label="ID del proyecto" />
-            </div>
+            {user.role === 'ADMIN' && (
+              <div className="mt-1.5">
+                <CopyableId id={p.id} label="ID del proyecto" />
+              </div>
+            )}
             {p.description && <p className="mt-2 line-clamp-2 text-sm text-slate-500">{p.description}</p>}
             <div className="mt-4 flex items-center justify-between">
               <div className="flex -space-x-2">

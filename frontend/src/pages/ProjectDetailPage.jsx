@@ -233,6 +233,7 @@ function DashboardTab({ projectId }) {
 export default function ProjectDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('tasks');
@@ -316,9 +317,11 @@ export default function ProjectDetailPage() {
             </span>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">{project.name}</h1>
-              <div className="mt-1.5">
-                <CopyableId id={project.id} label="ID del proyecto" />
-              </div>
+              {user.role === 'ADMIN' && (
+                <div className="mt-1.5">
+                  <CopyableId id={project.id} label="ID del proyecto" />
+                </div>
+              )}
               {project.description && <p className="mt-2 text-sm text-slate-500">{project.description}</p>}
               <p className="mt-1 text-sm text-slate-500">{project._count?.clients ?? 0} clientes</p>
               {project.repoUrl && (
