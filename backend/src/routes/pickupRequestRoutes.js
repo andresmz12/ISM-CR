@@ -7,10 +7,14 @@ const { handlePickupRequest } = require('../controllers/pickupRequestController'
 const router = express.Router();
 
 const pickupRequestSchema = z.object({
-  eventType: z.enum(['CREATED', 'STATUS_CHANGED']),
+  event: z.enum(['CREATED', 'STATUS_CHANGED']),
   pickupRequestId: z.string().min(1),
   trackingCode: z.string().min(1),
   status: z.string().min(1),
+  fromStatus: z.string().optional(),
+  toStatus: z.string().optional(),
+  occurredAt: z.string().min(1),
+  deliveryId: z.union([z.string(), z.number()]).transform(String),
 });
 
 /**

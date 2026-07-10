@@ -22,7 +22,7 @@ async function findSystemUser() {
 }
 
 async function handlePickupRequest(req, res) {
-  const { eventType, pickupRequestId, trackingCode, status: webhookStatus } = req.body;
+  const { event, pickupRequestId, trackingCode, status: webhookStatus } = req.body;
 
   let detail;
   try {
@@ -105,7 +105,7 @@ async function handlePickupRequest(req, res) {
           clientId: client.id,
           userId: systemUser.id,
           type: 'VISIT',
-          notes: `[RECOGIDA-PAQ] ${eventType} — tracking ${trackingCode}, estatus ${statusValue}`,
+          notes: `[RECOGIDA-PAQ] ${event} — tracking ${trackingCode}, estatus ${statusValue}`,
           resultStatusId: status.id,
         },
       });
