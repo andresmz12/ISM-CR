@@ -23,6 +23,7 @@ async function getProject(req, res) {
     where: { id: req.project.id },
     include: {
       members: { include: { user: { select: { id: true, fullName: true, active: true } } } },
+      _count: { select: { clients: true } },
       sections: {
         orderBy: { order: 'asc' },
         include: {

@@ -12,8 +12,6 @@ import CompaniesPage from './pages/CompaniesPage';
 import CompanyDetailPage from './pages/CompanyDetailPage';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
-import WorkspacesPage from './pages/WorkspacesPage';
-import WorkspaceDetailPage from './pages/WorkspaceDetailPage';
 import AdminUsersPage from './pages/AdminUsersPage';
 import AdminStatusesPage from './pages/AdminStatusesPage';
 import AdminApiKeysPage from './pages/AdminApiKeysPage';
@@ -36,8 +34,6 @@ export default function App() {
               <Route path="/companies/:id" element={<CompanyDetailPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/projects/:id" element={<ProjectDetailPage />} />
-              <Route path="/workspaces" element={<WorkspacesPage />} />
-              <Route path="/workspaces/:id" element={<WorkspaceDetailPage />} />
 
               <Route element={<ProtectedRoute roles={['ADMIN']} />}>
                 <Route path="/admin/users" element={<AdminUsersPage />} />

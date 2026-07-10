@@ -37,9 +37,9 @@ export default function ProjectsPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Proyectos</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Empresas</h1>
           <p className="mt-0.5 text-sm text-slate-500">
-            {canCreate ? `${projects.length} proyectos en total` : 'Proyectos donde formas parte del equipo'}
+            {canCreate ? `${projects.length} empresas en total` : 'Empresas donde formas parte del equipo'}
           </p>
         </div>
         {canCreate && (
@@ -48,7 +48,7 @@ export default function ProjectsPage() {
             className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-orange-600/25 transition hover:bg-orange-700"
           >
             <Icon name="plus" className="h-4 w-4" />
-            Nuevo proyecto
+            Nueva empresa
           </button>
         )}
       </div>
@@ -62,7 +62,7 @@ export default function ProjectsPage() {
           >
             <div className="flex items-start justify-between">
               <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-600">
-                <Icon name="folder" className="h-5 w-5" />
+                <Icon name="building" className="h-5 w-5" />
               </span>
               {p.archived && (
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-500">Archivado</span>
@@ -87,9 +87,9 @@ export default function ProjectsPage() {
         ))}
         {projects.length === 0 && (
           <div className="col-span-full rounded-2xl border border-dashed border-slate-300 p-12 text-center">
-            <Icon name="folder" className="mx-auto h-8 w-8 text-slate-300" strokeWidth={1.5} />
+            <Icon name="building" className="mx-auto h-8 w-8 text-slate-300" strokeWidth={1.5} />
             <p className="mt-2 text-sm text-slate-400">
-              {canCreate ? 'Todavía no hay proyectos.' : 'No formas parte de ningún proyecto todavía.'}
+              {canCreate ? 'Todavía no hay empresas.' : 'No formas parte de ninguna empresa todavía.'}
             </p>
           </div>
         )}

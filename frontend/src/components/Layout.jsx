@@ -24,15 +24,9 @@ const navSections = [
     ],
   },
   {
-    title: 'Proyectos',
-    items: [
-      { to: '/projects', label: 'Proyectos', icon: 'folder', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
-    ],
-  },
-  {
     title: 'Equipos',
     items: [
-      { to: '/workspaces', label: 'Empresas', icon: 'building', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
+      { to: '/projects', label: 'Empresas', icon: 'building', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
     ],
   },
   {

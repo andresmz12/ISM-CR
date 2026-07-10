@@ -277,9 +277,9 @@ export default function ClientDetailPage() {
                   <Icon name="building" className="h-3.5 w-3.5" />{client.company.name}
                 </Link>
               )}
-              {client.workspace && (
-                <Link to={`/workspaces/${client.workspace.id}`} className="mt-1 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-orange-600">
-                  <Icon name="users" className="h-3.5 w-3.5" />{client.workspace.name}
+              {client.project && (
+                <Link to={`/projects/${client.project.id}`} className="mt-1 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-orange-600">
+                  <Icon name="users" className="h-3.5 w-3.5" />{client.project.name}
                 </Link>
               )}
               <ShipmentCard client={client} />

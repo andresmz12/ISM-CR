@@ -23,7 +23,6 @@ const createSchema = z.object({
   assignedAgentId: z.string().uuid().optional(),
   companyId: z.string().uuid().optional(),
   projectId: z.string().uuid().optional(),
-  workspaceId: z.string().uuid().optional(),
   source: z.string().optional(),
   tags: z.array(z.string()).optional(),
   nextFollowUpAt: z.string().datetime().optional(),
@@ -40,7 +39,6 @@ const importSchema = z.object({
   duplicateAction: z.enum(['skip', 'create']).optional(),
   autoAssign: z.boolean().optional(),
   projectId: z.string().uuid().optional(),
-  workspaceId: z.string().uuid().optional(),
   rows: z.array(z.object({
     fullName: z.string(),
     phone: z.union([z.string(), z.number()]).transform(String),

@@ -68,7 +68,7 @@ async function findDuplicates(phone, phoneAlt, excludeId) {
 }
 
 async function listClients(req, res) {
-  const { search, statusId, assignedAgentId, companyId, projectId, workspaceId, tag, page = '1', pageSize = '25' } = req.query;
+  const { search, statusId, assignedAgentId, companyId, projectId, tag, page = '1', pageSize = '25' } = req.query;
   const where = { ...(await clientScopeFilter(req.user)) };
 
   if (search) {
@@ -83,7 +83,6 @@ async function listClients(req, res) {
   if (assignedAgentId && req.user.role !== 'AGENT') where.assignedAgentId = assignedAgentId;
   if (companyId) where.companyId = companyId;
   if (projectId) where.projectId = projectId;
-  if (workspaceId) where.workspaceId = workspaceId;
   if (tag) where.tags = { has: tag };
 
   const take = Math.min(parseInt(pageSize, 10) || 25, 100);
@@ -96,7 +95,6 @@ async function listClients(req, res) {
         status: true,
         assignedAgent: { select: { id: true, fullName: true } },
         company: { select: { id: true, name: true } },
-        workspace: { select: { id: true, name: true } },
         interactions: {
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -121,7 +119,7 @@ async function getClient(req, res) {
       status: true,
       assignedAgent: { select: { id: true, fullName: true } },
       company: true,
-      workspace: true,
+      project: { select: { id: true, name: true } },
       interactions: {
         include: { user: { select: { id: true, fullName: true } }, resultStatus: true },
         orderBy: { createdAt: 'desc' },
@@ -134,7 +132,7 @@ async function getClient(req, res) {
 }
 
 async function createClient(req, res) {
-  const { fullName, phone, phoneAlt, email, address, statusId, assignedAgentId, companyId, projectId, workspaceId, source, tags, nextFollowUpAt, autoAssign } = req.body;
+  const { fullName, phone, phoneAlt, email, address, statusId, assignedAgentId, companyId, projectId, source, tags, nextFollowUpAt, autoAssign } = req.body;
   let finalStatusId = statusId;
   if (!finalStatusId) {
     const def = await prisma.status.findFirst({ where: { isDefault: true } });
@@ -166,12 +164,11 @@ async function createClient(req, res) {
         assignedAgentId: finalAssignedAgentId,
         companyId,
         projectId,
-        workspaceId,
         source,
         tags: tags ?? [],
         nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : undefined,
       },
-      include: { status: true, assignedAgent: { select: { id: true, fullName: true } }, company: { select: { id: true, name: true } }, workspace: { select: { id: true, name: true } } },
+      include: { status: true, assignedAgent: { select: { id: true, fullName: true } }, company: { select: { id: true, name: true } } },
     });
   });
 
@@ -183,7 +180,7 @@ async function updateClient(req, res) {
   const existing = await prisma.client.findFirst({ where: { id, ...(await clientScopeFilter(req.user)) } });
   if (!existing) return res.status(404).json({ error: 'Client not found' });
 
-  const { fullName, phone, phoneAlt, email, address, statusId, companyId, projectId, workspaceId, source, tags, nextFollowUpAt } = req.body;
+  const { fullName, phone, phoneAlt, email, address, statusId, companyId, projectId, source, tags, nextFollowUpAt } = req.body;
   const data = {};
   if (fullName !== undefined) data.fullName = fullName;
   if (phone !== undefined) {
@@ -199,7 +196,6 @@ async function updateClient(req, res) {
   if (statusId !== undefined) data.statusId = statusId;
   if (companyId !== undefined) data.companyId = companyId;
   if (projectId !== undefined) data.projectId = projectId;
-  if (workspaceId !== undefined) data.workspaceId = workspaceId;
   if (source !== undefined) data.source = source;
   if (tags !== undefined) data.tags = tags;
   if (nextFollowUpAt !== undefined) data.nextFollowUpAt = nextFollowUpAt ? new Date(nextFollowUpAt) : null;
@@ -219,7 +215,7 @@ async function updateClient(req, res) {
     prisma.client.update({
       where: { id },
       data,
-      include: { status: true, assignedAgent: { select: { id: true, fullName: true } }, company: { select: { id: true, name: true } }, workspace: { select: { id: true, name: true } } },
+      include: { status: true, assignedAgent: { select: { id: true, fullName: true } }, company: { select: { id: true, name: true } } },
     }),
     ...auditEntries.map((entry) => prisma.auditLog.create({ data: entry })),
   ]);
@@ -265,11 +261,11 @@ async function reassignClient(req, res) {
 
 async function dailyTasks(req, res) {
   const { start, end } = businessDayBounds();
-  const { workspaceId } = req.query;
+  const { projectId } = req.query;
 
   const where = {
     ...(await clientScopeFilter(req.user)),
-    ...(workspaceId ? { workspaceId } : {}),
+    ...(projectId ? { projectId } : {}),
     nextFollowUpAt: { gte: start, lte: end },
   };
 
@@ -282,10 +278,10 @@ async function dailyTasks(req, res) {
 }
 
 async function rangeTasks(req, res) {
-  const { start, end, workspaceId } = req.query;
+  const { start, end, projectId } = req.query;
   const where = {
     ...(await clientScopeFilter(req.user)),
-    ...(workspaceId ? { workspaceId } : {}),
+    ...(projectId ? { projectId } : {}),
     nextFollowUpAt: { gte: new Date(start), lte: new Date(end) },
   };
 
@@ -301,10 +297,10 @@ async function overdueTasks(req, res) {
   // Vencidas = antes de hoy (día del negocio); las de hoy viven en /tasks/today
   // y así una tarea no aparece en ambas listas a la vez.
   const { start } = businessDayBounds();
-  const { workspaceId } = req.query;
+  const { projectId } = req.query;
   const where = {
     ...(await clientScopeFilter(req.user)),
-    ...(workspaceId ? { workspaceId } : {}),
+    ...(projectId ? { projectId } : {}),
     nextFollowUpAt: { lt: start },
   };
 
@@ -380,7 +376,6 @@ async function mergeClients(req, res) {
   if (!target.address && source.address) fill.address = source.address;
   if (!target.source && source.source) fill.source = source.source;
   if (!target.companyId && source.companyId) fill.companyId = source.companyId;
-  if (!target.workspaceId && source.workspaceId) fill.workspaceId = source.workspaceId;
   if (!target.assignedAgentId && source.assignedAgentId) fill.assignedAgentId = source.assignedAgentId;
   if (!target.nextFollowUpAt && source.nextFollowUpAt) fill.nextFollowUpAt = source.nextFollowUpAt;
   if (source.lastContactedAt && (!target.lastContactedAt || source.lastContactedAt > target.lastContactedAt)) {
@@ -416,7 +411,7 @@ async function mergeClients(req, res) {
 }
 
 async function importClients(req, res) {
-  const { rows, duplicateAction = 'skip', autoAssign = false, projectId, workspaceId } = req.body;
+  const { rows, duplicateAction = 'skip', autoAssign = false, projectId } = req.body;
 
   // Para repartir filas sin agente cuando se pide auto-asignación: se parte de
   // la carga actual y se va incrementando en memoria para que el lote quede parejo.
@@ -487,7 +482,6 @@ async function importClients(req, res) {
         ? req.user.sub
         : (row.assignedAgentId || nextAgentId()),
       projectId: projectId || undefined,
-      workspaceId: workspaceId || undefined,
     });
   });
 
