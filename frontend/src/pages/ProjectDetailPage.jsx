@@ -7,16 +7,17 @@ import ProjectMembersModal from '../components/ProjectMembersModal';
 import KanbanBoard from '../components/KanbanBoard';
 import NewClientModal from '../components/NewClientModal';
 import ImportClientsModal from '../components/ImportClientsModal';
-import StatusBadge from '../components/StatusBadge';
+import QuickNoteModal from '../components/QuickNoteModal';
+import StatusBadge, { colorForStatus } from '../components/StatusBadge';
 import CopyableId from '../components/CopyableId';
 import Icon, { Avatar } from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 
 const TABS = [
-  { key: 'tasks', label: 'Tareas', icon: 'tasks' },
+  { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { key: 'clients', label: 'Clientes', icon: 'clients' },
   { key: 'agenda', label: 'Agenda', icon: 'calendar' },
-  { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { key: 'tasks', label: 'Tareas', icon: 'tasks' },
 ];
 
 function ClientTaskList({ items }) {
@@ -64,9 +65,124 @@ function BarList({ items, emptyText }) {
   );
 }
 
+function ClientsTable({ clients, statuses, agents, canManageAgents, onStatusChange, onReassign, onAddNote, onDelete }) {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-slate-200 text-sm">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nombre</th>
+              <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Contacto</th>
+              <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Estatus</th>
+              <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Agente</th>
+              <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Próximo seguimiento</th>
+              <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Última nota</th>
+              <th className="whitespace-nowrap px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Acciones</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {clients.map((c) => {
+              const lastNote = c.interactions?.[0];
+              return (
+                <tr key={c.id} className="transition hover:bg-slate-50/70">
+                  <td className="px-5 py-3">
+                    <Link to={`/clients/${c.id}`} className="flex items-center gap-3">
+                      <Avatar name={c.fullName} className="h-9 w-9 shrink-0 text-xs" />
+                      <div className="font-semibold text-slate-900 hover:text-orange-600">{c.fullName}</div>
+                    </Link>
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3">
+                    <div className="flex items-center gap-1.5 text-slate-600">
+                      <Icon name="phone" className="h-3.5 w-3.5 shrink-0 text-slate-400" />{c.phone}
+                    </div>
+                  </td>
+                  <td className="px-5 py-3">
+                    <select
+                      value={c.statusId}
+                      onChange={(e) => onStatusChange(c.id, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      className={`cursor-pointer rounded-md border-0 py-1 pl-2.5 pr-6 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${colorForStatus(c.status?.name)}`}
+                    >
+                      {statuses.map((s) => <option key={s.id} value={s.id} className="bg-white text-slate-900">{s.name}</option>)}
+                    </select>
+                  </td>
+                  <td className="px-5 py-3">
+                    {canManageAgents ? (
+                      <select
+                        value={c.assignedAgent?.id ?? ''}
+                        onChange={(e) => onReassign(c.id, e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="cursor-pointer whitespace-nowrap rounded-md border border-transparent bg-transparent py-1 text-sm text-slate-600 hover:border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                      >
+                        <option value="">Sin asignar</option>
+                        {agents.map((a) => <option key={a.id} value={a.id}>{a.fullName}</option>)}
+                      </select>
+                    ) : c.assignedAgent ? (
+                      <div className="flex items-center gap-2 whitespace-nowrap text-slate-600">
+                        <Avatar name={c.assignedAgent.fullName} className="h-6 w-6 text-[9px]" />
+                        {c.assignedAgent.fullName}
+                      </div>
+                    ) : <span className="text-slate-400">Sin asignar</span>}
+                  </td>
+                  <td className="whitespace-nowrap px-5 py-3 text-slate-600">
+                    {c.nextFollowUpAt ? (
+                      <span className={`inline-flex items-center gap-1.5 ${new Date(c.nextFollowUpAt) < new Date() ? 'font-medium text-rose-600' : ''}`}>
+                        <Icon name="calendar" className="h-3.5 w-3.5" />
+                        {new Date(c.nextFollowUpAt).toLocaleDateString()}
+                      </span>
+                    ) : <span className="text-slate-300">—</span>}
+                  </td>
+                  <td className="max-w-[260px] px-5 py-3">
+                    {lastNote ? (
+                      <div title={lastNote.notes}>
+                        <p className="truncate text-slate-700">{lastNote.notes}</p>
+                        <p className="text-xs text-slate-400">
+                          {lastNote.user?.fullName} · {new Date(lastNote.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                    ) : <span className="text-slate-300">Sin notas</span>}
+                  </td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => onAddNote(c)}
+                        title="Agregar nota"
+                        className="rounded-lg p-2 text-slate-400 transition hover:bg-orange-50 hover:text-orange-600"
+                      >
+                        <Icon name="file" className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => onDelete(c)}
+                        title="Eliminar contacto"
+                        className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                      >
+                        <Icon name="trash" className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+            {clients.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-5 py-12 text-center">
+                  <Icon name="clients" className="mx-auto h-8 w-8 text-slate-300" strokeWidth={1.5} />
+                  <p className="mt-2 text-sm text-slate-400">No hay contactos que coincidan.</p>
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function ClientsTab({ projectId }) {
   const { user } = useAuth();
   const canManageAgents = user.role !== 'AGENT';
+  const [view, setView] = useState('kanban');
   const [statuses, setStatuses] = useState([]);
   const [agents, setAgents] = useState([]);
   const [clients, setClients] = useState([]);
@@ -74,6 +190,7 @@ function ClientsTab({ projectId }) {
   const [loading, setLoading] = useState(true);
   const [showNewModal, setShowNewModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [noteClient, setNoteClient] = useState(null);
 
   const fetchClients = useCallback(() => {
     setLoading(true);
@@ -99,6 +216,37 @@ function ClientsTab({ projectId }) {
     }
   }
 
+  async function handleStatusChange(clientId, newStatusId) {
+    const status = statuses.find((s) => s.id === newStatusId);
+    setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, statusId: newStatusId, status } : c)));
+    try {
+      await api.patch(`/clients/${clientId}`, { statusId: newStatusId });
+    } catch {
+      fetchClients();
+    }
+  }
+
+  async function handleReassign(clientId, agentId) {
+    if (!agentId) return;
+    const agent = agents.find((a) => a.id === agentId);
+    setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, assignedAgent: agent ?? null } : c)));
+    try {
+      await api.post(`/clients/${clientId}/reassign`, { agentId });
+    } catch {
+      fetchClients();
+    }
+  }
+
+  async function handleDelete(client) {
+    if (!window.confirm(`¿Eliminar a "${client.fullName}"? Esta acción no se puede deshacer.`)) return;
+    try {
+      await api.delete(`/clients/${client.id}`);
+      fetchClients();
+    } catch (err) {
+      window.alert(err.response?.data?.error || 'No se pudo eliminar el contacto.');
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -112,6 +260,20 @@ function ClientsTab({ projectId }) {
           />
         </div>
         <div className="flex items-center gap-2">
+          <div className="flex rounded-lg border border-slate-300 bg-white p-0.5 text-sm shadow-sm">
+            <button
+              onClick={() => setView('kanban')}
+              className={`rounded-md px-3 py-1.5 font-medium transition ${view === 'kanban' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              Tablero
+            </button>
+            <button
+              onClick={() => setView('table')}
+              className={`rounded-md px-3 py-1.5 font-medium transition ${view === 'table' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}
+            >
+              Tabla
+            </button>
+          </div>
           <button
             onClick={() => setShowImportModal(true)}
             className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
@@ -132,8 +294,19 @@ function ClientsTab({ projectId }) {
         <div className="flex h-48 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-orange-200 border-t-orange-600" />
         </div>
-      ) : (
+      ) : view === 'kanban' ? (
         <KanbanBoard statuses={statuses} clients={clients} onDropClient={handleDropClient} />
+      ) : (
+        <ClientsTable
+          clients={clients}
+          statuses={statuses}
+          agents={agents}
+          canManageAgents={canManageAgents}
+          onStatusChange={handleStatusChange}
+          onReassign={handleReassign}
+          onAddNote={setNoteClient}
+          onDelete={handleDelete}
+        />
       )}
       {showNewModal && (
         <NewClientModal
@@ -149,6 +322,13 @@ function ClientsTab({ projectId }) {
           lockedProjectId={projectId}
           onClose={() => setShowImportModal(false)}
           onImported={() => fetchClients()}
+        />
+      )}
+      {noteClient && (
+        <QuickNoteModal
+          client={noteClient}
+          onClose={() => setNoteClient(null)}
+          onSaved={() => { setNoteClient(null); fetchClients(); }}
         />
       )}
     </div>
@@ -236,7 +416,7 @@ export default function ProjectDetailPage() {
   const { user } = useAuth();
   const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState('tasks');
+  const [tab, setTab] = useState('dashboard');
   const [taskModal, setTaskModal] = useState(null);
   const [showMembersModal, setShowMembersModal] = useState(false);
 
