@@ -16,6 +16,13 @@ function normalizePhoneOrNull(p) {
   return n || null;
 }
 
+// Igual que normalizePhoneOrNull pero para email: minúsculas + trim, para
+// matchear sin diferenciar mayúsculas/minúsculas (ver emailNormalized en el schema).
+function normalizeEmailOrNull(e) {
+  const n = String(e ?? '').trim().toLowerCase();
+  return n || null;
+}
+
 // Límites del día en la zona horaria del negocio. El servidor corre en UTC
 // (Railway); sin este ajuste "hoy" empezaría a las 6-7pm del día anterior.
 // Zona IANA para que el horario de verano (DST) se aplique solo.
@@ -159,6 +166,7 @@ async function createClient(req, res) {
         phoneNormalized: normalizePhoneOrNull(phone),
         phoneAltNormalized: normalizePhoneOrNull(phoneAlt),
         email,
+        emailNormalized: normalizeEmailOrNull(email),
         address,
         statusId: finalStatusId,
         assignedAgentId: finalAssignedAgentId,
@@ -191,7 +199,10 @@ async function updateClient(req, res) {
     data.phoneAlt = phoneAlt;
     data.phoneAltNormalized = normalizePhoneOrNull(phoneAlt);
   }
-  if (email !== undefined) data.email = email;
+  if (email !== undefined) {
+    data.email = email;
+    data.emailNormalized = normalizeEmailOrNull(email);
+  }
   if (address !== undefined) data.address = address;
   if (statusId !== undefined) data.statusId = statusId;
   if (companyId !== undefined) data.companyId = companyId;
@@ -372,7 +383,10 @@ async function mergeClients(req, res) {
 
   const fill = {};
   if (!target.phoneAlt && source.phone !== target.phone) fill.phoneAlt = source.phone;
-  if (!target.email && source.email) fill.email = source.email;
+  if (!target.email && source.email) {
+    fill.email = source.email;
+    fill.emailNormalized = normalizeEmailOrNull(source.email);
+  }
   if (!target.address && source.address) fill.address = source.address;
   if (!target.source && source.source) fill.source = source.source;
   if (!target.companyId && source.companyId) fill.companyId = source.companyId;
@@ -474,6 +488,7 @@ async function importClients(req, res) {
       phoneAlt: phoneAltTrimmed,
       phoneAltNormalized: normalizePhoneOrNull(phoneAltTrimmed),
       email: row.email ? String(row.email).trim() : undefined,
+      emailNormalized: row.email ? normalizeEmailOrNull(row.email) : undefined,
       address: row.address ? String(row.address).trim() : undefined,
       source: row.source ? String(row.source).trim() : undefined,
       tags: Array.isArray(row.tags) ? row.tags : [],

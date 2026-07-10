@@ -14,6 +14,7 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const integrationRoutes = require('./routes/integrationRoutes');
 const pickupRequestRoutes = require('./routes/pickupRequestRoutes');
 const callRoutes = require('./routes/callRoutes');
+const emailRoutes = require('./routes/emailRoutes');
 const companyRoutes = require('./routes/companyRoutes');
 const dealRoutes = require('./routes/dealRoutes');
 const reportRoutes = require('./routes/reportRoutes');
@@ -68,6 +69,7 @@ app.use('/api/dashboard', dashboardRoutes);
 // lo que cuelgue de él, y estos webhooks usan autenticación HMAC en su lugar.
 app.use('/api/integrations/pickup-requests', pickupRequestRoutes);
 app.use('/api/integrations/calls', callRoutes);
+app.use('/api/integrations/emails', emailRoutes);
 app.use('/api/integrations', integrationRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/deals', dealRoutes);

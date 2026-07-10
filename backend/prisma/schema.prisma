@@ -89,6 +89,9 @@ model Client {
   phoneNormalized    String?
   phoneAltNormalized String?
   email              String?
+  // Minúsculas + trim, igual que phoneNormalized: permite matchear por email sin
+  // diferenciar mayúsculas/minúsculas (ej. webhook de campañas de email) con índice.
+  emailNormalized    String?
   address            String?
   statusId           String
   status             Status    @relation(fields: [statusId], references: [id])
@@ -130,6 +133,7 @@ model Client {
   @@index([phone])
   @@index([phoneNormalized])
   @@index([phoneAltNormalized])
+  @@index([emailNormalized])
   @@index([companyId])
   @@index([lastContactedAt])
   @@index([projectId])

@@ -98,6 +98,11 @@ function normalizePhoneOrNull(p) {
   return n || null;
 }
 
+function normalizeEmailOrNull(e) {
+  const n = String(e ?? '').trim().toLowerCase();
+  return n || null;
+}
+
 /**
  * @openapi
  * /integrations/leads:
@@ -164,6 +169,7 @@ router.post('/leads', validate(leadSchema), asyncHandler(async (req, res) => {
         phone,
         phoneNormalized: norm,
         email: email || undefined,
+        emailNormalized: normalizeEmailOrNull(email),
         source: source || 'web',
         statusId: defaultStatus.id,
         assignedAgentId,
