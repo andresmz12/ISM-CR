@@ -37,14 +37,18 @@ async function handlePickupRequest(req, res) {
   const statusValue = detail.status ?? webhookStatus;
   const statusName = STATUS_MAP[statusValue];
   if (!statusName) {
-    return res.status(400).json({ error: `Estatus desconocido: ${statusValue}` });
+    const error = `Estatus desconocido: ${statusValue}`;
+    console.error(`[pickup-requests] 400: ${error} — pickupRequestId=${pickupRequestId}, detail=${JSON.stringify(detail)}`);
+    return res.status(400).json({ error });
   }
 
   const contactName = detail.contactName;
   const contactPhone = detail.contactPhone;
   const address = detail.address;
   if (!contactName || !contactPhone) {
-    return res.status(400).json({ error: 'RECOGIDA-PAQ no devolvió contactName/contactPhone' });
+    const error = 'RECOGIDA-PAQ no devolvió contactName/contactPhone';
+    console.error(`[pickup-requests] 400: ${error} — pickupRequestId=${pickupRequestId}, detail=${JSON.stringify(detail)}`);
+    return res.status(400).json({ error });
   }
 
   const norm = normalizePhoneOrNull(contactPhone);
