@@ -13,6 +13,7 @@ const options = {
       securitySchemes: {
         bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
         apiKeyAuth: { type: 'apiKey', in: 'header', name: 'x-api-key' },
+        webhookSignature: { type: 'apiKey', in: 'header', name: 'x-recogidapaq-signature' },
       },
     },
   },

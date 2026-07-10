@@ -12,6 +12,7 @@ const statusRoutes = require('./routes/statusRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const integrationRoutes = require('./routes/integrationRoutes');
+const pickupRequestRoutes = require('./routes/pickupRequestRoutes');
 const companyRoutes = require('./routes/companyRoutes');
 const dealRoutes = require('./routes/dealRoutes');
 const reportRoutes = require('./routes/reportRoutes');
@@ -28,7 +29,9 @@ app.set('trust proxy', 1);
 
 app.use(helmet());
 app.use(cors({ origin: process.env.CORS_ORIGIN?.split(',') ?? '*', credentials: true }));
-app.use(express.json({ limit: '5mb' }));
+// Se guardan los bytes crudos del body para poder verificar la firma HMAC
+// de webhooks externos (RECOGIDA-PAQ) antes de que Express los reserialice.
+app.use(express.json({ limit: '5mb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
 app.use(morgan('dev'));
 
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000 });
@@ -46,6 +49,9 @@ app.use('/api/users', userRoutes);
 app.use('/api/statuses', statusRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+// Debe ir antes de /api/integrations: ese router aplica requireApiKey a todo
+// lo que cuelgue de él, y este webhook usa autenticación HMAC en su lugar.
+app.use('/api/integrations/pickup-requests', pickupRequestRoutes);
 app.use('/api/integrations', integrationRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/deals', dealRoutes);

@@ -73,4 +73,22 @@ async function requireProjectAccess(req, res, next) {
   next();
 }
 
-module.exports = { requireAuth, requireRole, requireApiKey, requireProjectAccess };
+// Verifica la firma HMAC-SHA256 de un webhook externo (RECOGIDA-PAQ) contra los
+// bytes crudos del body (req.rawBody, capturados en app.js antes del parseo JSON).
+function requireWebhookSignature(req, res, next) {
+  const signature = req.headers['x-recogidapaq-signature'];
+  const secret = process.env.WEBHOOK_SECRET;
+  if (!signature || !secret || !req.rawBody) {
+    return res.status(401).json({ error: 'Missing signature' });
+  }
+
+  const expected = crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex');
+  const provided = Buffer.from(String(signature), 'utf8');
+  const expectedBuf = Buffer.from(expected, 'utf8');
+  if (provided.length !== expectedBuf.length || !crypto.timingSafeEqual(provided, expectedBuf)) {
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+  next();
+}
+
+module.exports = { requireAuth, requireRole, requireApiKey, requireProjectAccess, requireWebhookSignature };
