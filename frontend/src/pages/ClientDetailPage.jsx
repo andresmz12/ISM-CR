@@ -101,6 +101,44 @@ function AttachmentsCard({ clientId }) {
   );
 }
 
+// La nota de pickupRequestController.js empieza con "[RECOGIDA-PAQ] {event} —
+// tracking {trackingCode}, estatus ...": se extrae el tracking code de ahí,
+// no hay un campo estructurado para eso (un cliente puede tener varias
+// recogidas con tracking codes distintos a lo largo del tiempo).
+function extractTrackingCode(interactions) {
+  const latest = interactions?.find((i) => i.notes?.startsWith('[RECOGIDA-PAQ]'));
+  const match = latest?.notes?.match(/tracking\s+(\S+),/);
+  return match ? match[1] : null;
+}
+
+function ShipmentCard({ client }) {
+  const trackingCode = extractTrackingCode(client.interactions);
+  if (!client.recipientName && !client.recipientAddress && !trackingCode) return null;
+
+  return (
+    <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+      <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
+        <Icon name="briefcase" className="h-3.5 w-3.5" />
+        Envío
+      </h3>
+      <div className="space-y-1.5 text-slate-700">
+        {client.address && (
+          <p><span className="font-medium text-slate-800">Dirección de recogida:</span> {client.address}</p>
+        )}
+        {(client.recipientName || client.recipientAddress) && (
+          <p>
+            <span className="font-medium text-slate-800">Destinatario:</span>{' '}
+            {client.recipientName || 'Sin nombre'}{client.recipientAddress ? ` — ${client.recipientAddress}` : ''}
+          </p>
+        )}
+        {trackingCode && (
+          <p><span className="font-medium text-slate-800">Tracking:</span> {trackingCode}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function DuplicatesCard({ clientId, canMerge, onMerged }) {
   const [duplicates, setDuplicates] = useState([]);
   const [merging, setMerging] = useState(false);
@@ -231,12 +269,15 @@ export default function ClientDetailPage() {
                 {client.phoneAlt && <span>{client.phoneAlt}</span>}
                 {client.email && <span className="flex items-center gap-1.5"><Icon name="mail" className="h-3.5 w-3.5 text-slate-400" />{client.email}</span>}
               </div>
-              {client.address && <p className="mt-1 text-sm text-slate-500">{client.address}</p>}
+              {client.address && !client.recipientName && !client.recipientAddress && (
+                <p className="mt-1 text-sm text-slate-500">{client.address}</p>
+              )}
               {client.company && (
                 <Link to={`/companies/${client.company.id}`} className="mt-1 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-orange-600">
                   <Icon name="building" className="h-3.5 w-3.5" />{client.company.name}
                 </Link>
               )}
+              <ShipmentCard client={client} />
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <StatusBadge name={client.status?.name} />
                 {client.source && <span className="text-xs text-slate-400">Origen: {client.source}</span>}
@@ -319,7 +360,7 @@ export default function ClientDetailPage() {
                   <span className="font-medium text-slate-800">{i.type}</span>
                   <span className="text-xs text-slate-400">{new Date(i.createdAt).toLocaleString()}</span>
                 </div>
-                <p className="text-slate-600">{i.notes}</p>
+                <p className="whitespace-pre-line text-slate-600">{i.notes}</p>
                 <div className="mt-1 flex items-center gap-2 text-xs text-slate-400">
                   <span>{i.user.fullName}</span>
                   {i.resultStatus && <StatusBadge name={i.resultStatus.name} />}

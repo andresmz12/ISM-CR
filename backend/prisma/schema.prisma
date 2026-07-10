@@ -107,6 +107,11 @@ model Client {
   // tratan como "visibles sin restricción de proyecto" (ver clientScope.js).
   projectId       String?
   project         Project?  @relation(fields: [projectId], references: [id])
+  // Destinatario de la recogida más reciente (RECOGIDA-PAQ). Se sobreescribe en
+  // cada webhook, igual que `address` — un cliente puede pedir varias recogidas
+  // con destinatarios distintos y esto solo refleja la más reciente.
+  recipientName    String?
+  recipientAddress String?
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

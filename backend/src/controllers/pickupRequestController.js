@@ -16,6 +16,24 @@ function normalizePhoneOrNull(p) {
   return n || null;
 }
 
+// RECOGIDA-PAQ manda la dirección partida en varios campos (calle, ciudad,
+// estado, código postal) en vez de un string único — se concatena con comas,
+// omitiendo silenciosamente las partes que no vengan.
+function formatAddress(...parts) {
+  return parts.filter(Boolean).join(', ');
+}
+
+function buildPickupNotes({ event, trackingCode, statusValue, pickupAddressFull, recipientName, recipientAddressFull, recipientPhone }) {
+  const lines = [
+    `[RECOGIDA-PAQ] ${event} — tracking ${trackingCode}, estatus ${statusValue}`,
+    pickupAddressFull ? `Dirección de recogida: ${pickupAddressFull}` : null,
+    (recipientName || recipientAddressFull)
+      ? `Destinatario: ${recipientName ?? 'sin nombre'} — ${recipientAddressFull || 'sin dirección'}${recipientPhone ? ` (tel: ${recipientPhone})` : ''}`
+      : null,
+  ];
+  return lines.filter(Boolean).join('\n');
+}
+
 async function findSystemUser() {
   const systemEmail = process.env.SYSTEM_USER_EMAIL || 'sistema@ism.local';
   return (await prisma.user.findUnique({ where: { email: systemEmail } }))
@@ -51,7 +69,10 @@ async function handlePickupRequest(req, res) {
 
   const contactName = detail.contactName;
   const contactPhone = detail.contactPhone;
-  const address = detail.address;
+  const pickupAddressFull = formatAddress(detail.pickupAddress, detail.pickupCity, detail.pickupState, detail.pickupPostalCode);
+  const recipientAddressFull = formatAddress(detail.recipientAddress, detail.recipientCity, detail.recipientState);
+  const recipientName = detail.recipientName;
+  const recipientPhone = detail.recipientPhone;
   if (!contactName || !contactPhone) {
     const error = 'RECOGIDA-PAQ no devolvió contactName/contactPhone';
     console.error(`[pickup-requests] 400: ${error} — pickupRequestId=${pickupRequestId}, detail=${JSON.stringify(detail)}`);
@@ -80,7 +101,13 @@ async function handlePickupRequest(req, res) {
       const statusChanged = status.id !== existingClient.statusId;
       client = await tx.client.update({
         where: { id: existingClient.id },
-        data: { address, statusId: status.id, lastContactedAt: new Date() },
+        data: {
+          address: pickupAddressFull,
+          recipientName,
+          recipientAddress: recipientAddressFull,
+          statusId: status.id,
+          lastContactedAt: new Date(),
+        },
       });
       if (statusChanged) {
         await tx.auditLog.create({
@@ -99,7 +126,9 @@ async function handlePickupRequest(req, res) {
           fullName: contactName,
           phone: contactPhone,
           phoneNormalized: norm,
-          address,
+          address: pickupAddressFull,
+          recipientName,
+          recipientAddress: recipientAddressFull,
           statusId: status.id,
           source: 'RECOGIDA-PAQ',
           lastContactedAt: new Date(),
@@ -115,7 +144,7 @@ async function handlePickupRequest(req, res) {
           clientId: client.id,
           userId: systemUser.id,
           type: 'VISIT',
-          notes: `[RECOGIDA-PAQ] ${event} — tracking ${trackingCode}, estatus ${statusValue}`,
+          notes: buildPickupNotes({ event, trackingCode, statusValue, pickupAddressFull, recipientName, recipientAddressFull, recipientPhone }),
           resultStatusId: status.id,
         },
       });

@@ -36,13 +36,7 @@ async function fetchPickupRequestDetail(pickupRequestId) {
     throw new RecogidaPaqApiError(`RECOGIDA-PAQ respondió ${response.status}`, response.status, url, responseBody);
   }
 
-  const rawBody = await response.text();
-  // Log temporal de diagnóstico: nunca se ha confirmado el shape real de esta
-  // respuesta contra un webhook real de RECOGIDA-PAQ — este log es lo que
-  // permite capturarlo. Quitar una vez confirmado.
-  console.log(`[pickup-requests] GET exitoso — url=${url}, pickupRequestId=${pickupRequestId}, body=${rawBody}`);
-
-  return JSON.parse(rawBody);
+  return response.json();
 }
 
 module.exports = { fetchPickupRequestDetail, RecogidaPaqApiError };
