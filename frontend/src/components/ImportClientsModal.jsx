@@ -41,36 +41,75 @@ export default function ImportClientsModal({ projects = [], onClose, onImported 
   const [result, setResult] = useState(null);
   const inputRef = useRef(null);
 
-  function handleFile(file) {
+  // Convierte una hoja de exceljs a un array de arrays de strings (misma forma
+  // que se usaba con xlsx: header:1 + defval:'').
+  function sheetToRows(worksheet) {
+    const rows = [];
+    worksheet.eachRow({ includeEmpty: true }, (row) => {
+      const values = row.values.slice(1); // exceljs indexa las columnas desde 1
+      rows.push(values.map((v) => {
+        if (v === null || v === undefined) return '';
+        if (typeof v === 'object' && v.text !== undefined) return String(v.text); // rich text
+        if (typeof v === 'object' && v.result !== undefined) return String(v.result); // fórmula evaluada
+        return String(v);
+      }));
+    });
+    return rows;
+  }
+
+  function finishParsing(file, data) {
+    const nonEmpty = data.filter((r) => r.some((c) => String(c).trim() !== ''));
+    if (nonEmpty.length < 2) {
+      setError('El archivo no tiene datos (se espera una fila de encabezados y al menos un cliente).');
+      return;
+    }
+    const [head, ...body] = nonEmpty;
+    if (body.length > 2000) {
+      setError(`El archivo tiene ${body.length} filas; el máximo por importación es 2000. Divide el archivo e intenta de nuevo.`);
+      return;
+    }
+    setFileName(file.name);
+    setHeaders(head.map((h) => String(h)));
+    setRows(body);
+    setMapping(guessMapping(head));
+    setStep('map');
+  }
+
+  async function handleFile(file) {
     setError('');
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        // xlsx pesa ~400 kB: se carga solo cuando el usuario importa un archivo
-        const XLSX = await import('xlsx');
-        const wb = XLSX.read(e.target.result, { type: 'array' });
-        const sheet = wb.Sheets[wb.SheetNames[0]];
-        const data = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-        const nonEmpty = data.filter((r) => r.some((c) => String(c).trim() !== ''));
-        if (nonEmpty.length < 2) {
-          setError('El archivo no tiene datos (se espera una fila de encabezados y al menos un cliente).');
-          return;
-        }
-        const [head, ...body] = nonEmpty;
-        if (body.length > 2000) {
-          setError(`El archivo tiene ${body.length} filas; el máximo por importación es 2000. Divide el archivo e intenta de nuevo.`);
-          return;
-        }
-        setFileName(file.name);
-        setHeaders(head.map((h) => String(h)));
-        setRows(body);
-        setMapping(guessMapping(head));
-        setStep('map');
-      } catch {
-        setError('No se pudo leer el archivo. Usa un .xlsx, .xls o .csv válido.');
+    const isCsv = /\.csv$/i.test(file.name);
+    const isLegacyXls = /\.xls$/i.test(file.name);
+    if (isLegacyXls) {
+      setError('El formato .xls (Excel 97-2003) ya no se soporta. Vuelve a guardar el archivo como .xlsx o .csv.');
+      return;
+    }
+    try {
+      if (isCsv) {
+        // Papa.parse trabaja directo sobre el File; skipEmptyLines evita filas
+        // fantasma al final del archivo.
+        const Papa = (await import('papaparse')).default;
+        Papa.parse(file, {
+          skipEmptyLines: true,
+          complete: (results) => finishParsing(file, results.data),
+          error: () => setError('No se pudo leer el archivo. Usa un .xlsx o .csv válido.'),
+        });
+        return;
       }
-    };
-    reader.readAsArrayBuffer(file);
+
+      // exceljs pesa varios cientos de kB: se carga solo cuando el usuario importa un archivo
+      const ExcelJS = (await import('exceljs')).default;
+      const buffer = await file.arrayBuffer();
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(buffer);
+      const worksheet = workbook.worksheets[0];
+      if (!worksheet) {
+        setError('El archivo no tiene hojas con datos.');
+        return;
+      }
+      finishParsing(file, sheetToRows(worksheet));
+    } catch {
+      setError('No se pudo leer el archivo. Usa un .xlsx o .csv válido.');
+    }
   }
 
   const mappedPreview = useMemo(() => rows.slice(0, 5).map((r) => {
@@ -127,7 +166,7 @@ export default function ImportClientsModal({ projects = [], onClose, onImported 
             </span>
             <div>
               <h2 className="text-base font-semibold text-slate-900">Importar clientes desde Excel</h2>
-              <p className="text-xs text-slate-500">Acepta .xlsx, .xls y .csv — máximo 2000 filas por archivo</p>
+              <p className="text-xs text-slate-500">Acepta .xlsx y .csv — máximo 2000 filas por archivo</p>
             </div>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
@@ -158,7 +197,7 @@ export default function ImportClientsModal({ projects = [], onClose, onImported 
                   La primera fila debe tener los encabezados (Nombre, Teléfono, Email, ...)
                 </p>
               </div>
-              <input ref={inputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
+              <input ref={inputRef} type="file" accept=".xlsx,.csv" className="hidden"
                 onChange={(e) => { if (e.target.files[0]) handleFile(e.target.files[0]); e.target.value = ''; }} />
             </div>
           )}
