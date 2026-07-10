@@ -2,7 +2,6 @@ const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
 const { fetchPickupRequestDetail, RecogidaPaqApiError } = require('../services/recogidaPaqClient');
 const { pickAutoAssignAgent } = require('../utils/autoAssign');
-const { recordWebhookEventOnce } = require('../utils/webhookDedupe');
 
 const STATUS_MAP = {
   PENDING: 'Pendiente de recogida',
@@ -43,14 +42,6 @@ async function findSystemUser() {
 
 async function handlePickupRequest(req, res) {
   const { event, pickupRequestId, trackingCode, status: webhookStatus, deliveryId } = req.body;
-
-  // RECOGIDA-PAQ reintenta el webhook ante timeouts/5xx; deliveryId identifica la
-  // entrega del webhook en sí (no el pickup), así que dedupe por él evita volver a
-  // crear la interacción/auditoría de un mismo evento reenviado.
-  const isNewEvent = await recordWebhookEventOnce('recogidapaq.pickup_request', deliveryId);
-  if (!isNewEvent) {
-    return res.json({ duplicate: true });
-  }
 
   let detail;
   try {
@@ -96,77 +87,94 @@ async function handlePickupRequest(req, res) {
     : null;
   const systemUser = await findSystemUser();
 
-  const result = await prisma.$transaction(async (tx) => {
-    // Round-robin solo para clientes nuevos — uno ya existente nunca cambia de agente
-    // por este webhook. Se elige dentro de la misma transacción que crea el cliente,
-    // bajo el advisory lock de pickAutoAssignAgent, para que dos webhooks concurrentes
-    // no se asignen al mismo agente (ver autoAssign.js).
-    const autoAssignedAgentId = existingClient ? undefined : ((await pickAutoAssignAgent(tx)) ?? undefined);
+  let result;
+  try {
+    result = await prisma.$transaction(async (tx) => {
+      // Dedupe atómico con el resto de los efectos de esta transacción: si
+      // deliveryId ya se procesó, esto lanza P2002 y revierte todo (nada se
+      // duplica). Va DENTRO de la transacción y no antes de fetchPickupRequestDetail
+      // a propósito: si RECOGIDA-PAQ falla (502) o el detalle es inválido (400), el
+      // evento nunca se marca como procesado, así un reintento real de RECOGIDA-PAQ
+      // no queda bloqueado como si ya se hubiera completado cuando en realidad nunca
+      // llegó a persistirse nada.
+      await tx.webhookEvent.create({ data: { source: 'recogidapaq.pickup_request', externalId: String(deliveryId) } });
 
-    let status = await tx.status.findUnique({ where: { name: statusName } });
-    if (!status) {
-      const maxOrder = await tx.status.aggregate({ _max: { order: true } });
-      status = await tx.status.create({
-        data: { name: statusName, order: (maxOrder._max.order ?? 0) + 1, isDefault: false },
-      });
-    }
+      // Round-robin solo para clientes nuevos — uno ya existente nunca cambia de agente
+      // por este webhook. Se elige dentro de la misma transacción que crea el cliente,
+      // bajo el advisory lock de pickAutoAssignAgent, para que dos webhooks concurrentes
+      // no se asignen al mismo agente (ver autoAssign.js).
+      const autoAssignedAgentId = existingClient ? undefined : ((await pickAutoAssignAgent(tx)) ?? undefined);
 
-    let client;
-    if (existingClient) {
-      const statusChanged = status.id !== existingClient.statusId;
-      client = await tx.client.update({
-        where: { id: existingClient.id },
-        data: {
-          address: pickupAddressFull,
-          recipientName,
-          recipientAddress: recipientAddressFull,
-          statusId: status.id,
-          lastContactedAt: new Date(),
-        },
-      });
-      if (statusChanged) {
-        await tx.auditLog.create({
+      let status = await tx.status.findUnique({ where: { name: statusName } });
+      if (!status) {
+        const maxOrder = await tx.status.aggregate({ _max: { order: true } });
+        status = await tx.status.create({
+          data: { name: statusName, order: (maxOrder._max.order ?? 0) + 1, isDefault: false },
+        });
+      }
+
+      let client;
+      if (existingClient) {
+        const statusChanged = status.id !== existingClient.statusId;
+        client = await tx.client.update({
+          where: { id: existingClient.id },
           data: {
-            clientId: client.id,
-            userId: systemUser?.id,
-            field: 'statusId',
-            oldValue: existingClient.statusId,
-            newValue: status.id,
+            address: pickupAddressFull,
+            recipientName,
+            recipientAddress: recipientAddressFull,
+            statusId: status.id,
+            lastContactedAt: new Date(),
+          },
+        });
+        if (statusChanged) {
+          await tx.auditLog.create({
+            data: {
+              clientId: client.id,
+              userId: systemUser?.id,
+              field: 'statusId',
+              oldValue: existingClient.statusId,
+              newValue: status.id,
+            },
+          });
+        }
+      } else {
+        client = await tx.client.create({
+          data: {
+            fullName: contactName,
+            phone: contactPhone,
+            phoneNormalized: norm,
+            address: pickupAddressFull,
+            recipientName,
+            recipientAddress: recipientAddressFull,
+            statusId: status.id,
+            source: 'RECOGIDA-PAQ',
+            lastContactedAt: new Date(),
+            projectId: process.env.RECOGIDA_PAQ_PROJECT_ID || undefined,
+            assignedAgentId: autoAssignedAgentId,
           },
         });
       }
-    } else {
-      client = await tx.client.create({
-        data: {
-          fullName: contactName,
-          phone: contactPhone,
-          phoneNormalized: norm,
-          address: pickupAddressFull,
-          recipientName,
-          recipientAddress: recipientAddressFull,
-          statusId: status.id,
-          source: 'RECOGIDA-PAQ',
-          lastContactedAt: new Date(),
-          projectId: process.env.RECOGIDA_PAQ_PROJECT_ID || undefined,
-          assignedAgentId: autoAssignedAgentId,
-        },
-      });
-    }
 
-    if (systemUser) {
-      await tx.interaction.create({
-        data: {
-          clientId: client.id,
-          userId: systemUser.id,
-          type: 'VISIT',
-          notes: buildPickupNotes({ event, trackingCode, statusValue, pickupAddressFull, recipientName, recipientAddressFull, recipientPhone }),
-          resultStatusId: status.id,
-        },
-      });
-    }
+      if (systemUser) {
+        await tx.interaction.create({
+          data: {
+            clientId: client.id,
+            userId: systemUser.id,
+            type: 'VISIT',
+            notes: buildPickupNotes({ event, trackingCode, statusValue, pickupAddressFull, recipientName, recipientAddressFull, recipientPhone }),
+            resultStatusId: status.id,
+          },
+        });
+      }
 
-    return { client, status };
-  });
+      return { client, status };
+    });
+  } catch (err) {
+    if (err.code === 'P2002') {
+      return res.json({ duplicate: true });
+    }
+    throw err;
+  }
 
   res.json({ existing: Boolean(existingClient), clientId: result.client.id, statusId: result.status.id });
 }

@@ -1,6 +1,5 @@
 const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
-const { recordWebhookEventOnce } = require('../utils/webhookDedupe');
 
 function normalizePhoneOrNull(p) {
   const n = String(p ?? '').replace(/\D/g, '');
@@ -34,20 +33,14 @@ function buildCallNotes(call) {
 // plan) — se asume un hueco de sincronización, no un lead genuino.
 async function handleCallEnded(req, res) {
   const { prospect, call } = req.body;
-
-  // ZyraVoice reintenta el webhook si no recibe 2xx a tiempo; sin esto, un
-  // reintento duplicaría la interacción de la llamada cada vez.
-  const isNewEvent = await recordWebhookEventOnce('zyravoice.call_ended', call.id);
-  if (!isNewEvent) {
-    return res.json({ existing: true, duplicate: true });
-  }
-
   const norm = normalizePhoneOrNull(prospect.phone);
   const existingClient = norm
     ? await prisma.client.findFirst({ where: { OR: [{ phoneNormalized: norm }, { phoneAltNormalized: norm }] } })
     : null;
 
   if (!existingClient) {
+    // Nada que persistir: no hace falta dedupe, un reintento vuelve a calcular
+    // exactamente la misma respuesta sin efectos secundarios.
     return res.json({ existing: false, clientId: null, skipped: true });
   }
 
@@ -56,17 +49,31 @@ async function handleCallEnded(req, res) {
     return res.status(500).json({ error: 'No hay usuario Sistema/Admin configurado para atribuir la interacción' });
   }
 
-  await prisma.$transaction([
-    prisma.interaction.create({
-      data: {
-        clientId: existingClient.id,
-        userId: systemUser.id,
-        type: 'CALL',
-        notes: buildCallNotes(call),
-      },
-    }),
-    prisma.client.update({ where: { id: existingClient.id }, data: { lastContactedAt: new Date() } }),
-  ]);
+  try {
+    // El registro de dedupe va en la MISMA transacción que la interacción: si
+    // call.id ya se procesó, el create de webhookEvent lanza P2002 y revierte
+    // toda la transacción (nada se duplica). Si algo más de la transacción
+    // falla, el rollback también deshace el registro de dedupe — así un
+    // reintento real de ZyraVoice (ante un 5xx) no queda bloqueado como si ya
+    // se hubiera procesado cuando en realidad nunca se completó.
+    await prisma.$transaction([
+      prisma.webhookEvent.create({ data: { source: 'zyravoice.call_ended', externalId: String(call.id) } }),
+      prisma.interaction.create({
+        data: {
+          clientId: existingClient.id,
+          userId: systemUser.id,
+          type: 'CALL',
+          notes: buildCallNotes(call),
+        },
+      }),
+      prisma.client.update({ where: { id: existingClient.id }, data: { lastContactedAt: new Date() } }),
+    ]);
+  } catch (err) {
+    if (err.code === 'P2002') {
+      return res.json({ existing: true, duplicate: true });
+    }
+    throw err;
+  }
 
   res.json({ existing: true, clientId: existingClient.id });
 }
