@@ -98,12 +98,12 @@ export default function DealModal({ deal, companies, agents, canAssignOwner, onC
           </div>
 
           <div className="relative">
-            <label className="mb-1 block text-sm font-medium text-slate-700">Cliente</label>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Contacto</label>
             <input
               value={form.clientSearch}
               onChange={(e) => { update('clientSearch', e.target.value); update('clientId', ''); }}
               className={inputCls}
-              placeholder="Buscar cliente..."
+              placeholder="Buscar contacto..."
             />
             {clientOptions.length > 0 && (
               <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-lg">

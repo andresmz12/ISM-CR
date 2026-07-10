@@ -14,7 +14,7 @@ const navSections = [
   {
     title: 'Ventas',
     items: [
-      { to: '/clients', label: 'Clientes', icon: 'clients', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
+      { to: '/clients', label: 'Contactos', icon: 'clients', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
     ],
   },
   {
@@ -69,7 +69,7 @@ export default function Layout() {
           </span>
           <div>
             <div className="text-sm font-semibold text-white">ISM CRM</div>
-            <div className="text-[11px] text-zinc-500">Gestión de clientes</div>
+            <div className="text-[11px] text-zinc-500">Gestión de contactos</div>
           </div>
         </div>
 

@@ -121,7 +121,7 @@ function ListView() {
           <div className="mb-2 flex items-center gap-2">
             <Icon name="clock" className="h-4 w-4 text-slate-400" />
             <h2 className="text-sm font-semibold text-slate-900">
-              Clientes fríos ({stale.items.length}) — sin contacto hace más de {stale.days} días
+              Contactos fríos ({stale.items.length}) — sin contacto hace más de {stale.days} días
             </h2>
           </div>
           <div className="divide-y divide-slate-100">

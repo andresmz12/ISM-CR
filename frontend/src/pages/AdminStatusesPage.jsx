@@ -31,12 +31,12 @@ export default function AdminStatusesPage() {
   }
 
   async function handleDelete(status) {
-    if (!window.confirm(`¿Eliminar el estatus "${status.name}"? Esto puede fallar si hay clientes usándolo.`)) return;
+    if (!window.confirm(`¿Eliminar el estatus "${status.name}"? Esto puede fallar si hay contactos usándolo.`)) return;
     try {
       await api.delete(`/statuses/${status.id}`);
       fetchStatuses();
     } catch {
-      window.alert('No se pudo eliminar: probablemente hay clientes con este estatus.');
+      window.alert('No se pudo eliminar: probablemente hay contactos con este estatus.');
     }
   }
 
@@ -48,8 +48,8 @@ export default function AdminStatusesPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Estatus de clientes</h1>
-        <p className="mt-0.5 text-sm text-slate-500">Configura las etapas del pipeline de clientes</p>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">Estatus de contactos</h1>
+        <p className="mt-0.5 text-sm text-slate-500">Configura las etapas del pipeline de contactos</p>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

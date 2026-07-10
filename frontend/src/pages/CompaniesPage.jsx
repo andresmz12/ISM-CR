@@ -69,7 +69,7 @@ export default function CompaniesPage() {
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Empresa</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Industria</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Contacto</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Clientes</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Contactos</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Negocios</th>
               </tr>
             </thead>

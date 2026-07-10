@@ -60,7 +60,7 @@ export default function ImportClientsModal({ projects = [], onClose, onImported 
   function finishParsing(file, data) {
     const nonEmpty = data.filter((r) => r.some((c) => String(c).trim() !== ''));
     if (nonEmpty.length < 2) {
-      setError('El archivo no tiene datos (se espera una fila de encabezados y al menos un cliente).');
+      setError('El archivo no tiene datos (se espera una fila de encabezados y al menos un contacto).');
       return;
     }
     const [head, ...body] = nonEmpty;
@@ -165,7 +165,7 @@ export default function ImportClientsModal({ projects = [], onClose, onImported 
               <Icon name="upload" className="h-5 w-5" />
             </span>
             <div>
-              <h2 className="text-base font-semibold text-slate-900">Importar clientes desde Excel</h2>
+              <h2 className="text-base font-semibold text-slate-900">Importar contactos desde Excel</h2>
               <p className="text-xs text-slate-500">Acepta .xlsx y .csv — máximo 2000 filas por archivo</p>
             </div>
           </div>
@@ -290,7 +290,7 @@ export default function ImportClientsModal({ projects = [], onClose, onImported 
                   <option value="">Sin proyecto</option>
                   {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
-                <p className="mt-1 text-xs text-slate-500">Se asigna a todos los clientes que se creen en esta importación.</p>
+                <p className="mt-1 text-xs text-slate-500">Se asigna a todos los contactos que se creen en esta importación.</p>
               </div>
 
               <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">
@@ -303,7 +303,7 @@ export default function ImportClientsModal({ projects = [], onClose, onImported 
                   className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-orange-700 disabled:opacity-50"
                 >
                   <Icon name="upload" className="h-4 w-4" />
-                  {importing ? 'Importando...' : `Importar ${rows.length} clientes`}
+                  {importing ? 'Importando...' : `Importar ${rows.length} contactos`}
                 </button>
               </div>
               {!canImport && (

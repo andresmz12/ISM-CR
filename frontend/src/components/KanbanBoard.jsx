@@ -85,7 +85,7 @@ export default function KanbanBoard({ statuses, clients, onDropClient }) {
             ))}
             {items.length === 0 && (
               <div className="rounded-xl border border-dashed border-slate-300 p-4 text-center text-xs text-slate-400">
-                Arrastra clientes aquí
+                Arrastra contactos aquí
               </div>
             )}
           </div>

@@ -149,7 +149,7 @@ function DuplicatesCard({ clientId, canMerge, onMerged }) {
 
   async function handleMerge(dup) {
     if (!window.confirm(
-      `¿Fusionar "${dup.fullName}" dentro de este cliente?\n\nSe moverán sus interacciones, deals y archivos aquí, y el registro duplicado se eliminará. Esta acción no se puede deshacer.`
+      `¿Fusionar "${dup.fullName}" dentro de este contacto?\n\nSe moverán sus interacciones, deals y archivos aquí, y el registro duplicado se eliminará. Esta acción no se puede deshacer.`
     )) return;
     setMerging(true);
     try {
@@ -250,12 +250,12 @@ export default function ClientDetailPage() {
       </div>
     );
   }
-  if (!client) return <p className="text-slate-500">Cliente no encontrado.</p>;
+  if (!client) return <p className="text-slate-500">Contacto no encontrado.</p>;
 
   return (
     <div className="space-y-6">
       <Link to="/clients" className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-orange-600">
-        <Icon name="chevronLeft" className="h-4 w-4" /> Volver a clientes
+        <Icon name="chevronLeft" className="h-4 w-4" /> Volver a contactos
       </Link>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -336,7 +336,7 @@ export default function ClientDetailPage() {
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Notas *</label>
               <textarea required rows={3} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="¿Qué se habló con el cliente?" />
+                className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" placeholder="¿Qué se habló con el contacto?" />
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-slate-700">Próximo seguimiento</label>

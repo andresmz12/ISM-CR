@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import KanbanBoard from '../components/KanbanBoard';
-import { colorForStatus } from '../components/StatusBadge';
+import { colorForStatus, statusPalette } from '../components/StatusBadge';
 import NewClientModal from '../components/NewClientModal';
 import ImportClientsModal from '../components/ImportClientsModal';
 import QuickNoteModal from '../components/QuickNoteModal';
@@ -91,8 +91,38 @@ export default function ClientsPage() {
   const [visibleCols, setVisibleCols] = useState(loadColumnPrefs);
   const [savedFilters, setSavedFilters] = useState([]);
   const [activeFilterId, setActiveFilterId] = useState('');
+  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
   const scrollRef = useRef(null);
   const sentinelRef = useRef(null);
+
+  function toggleGroup(statusId) {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(statusId)) next.delete(statusId); else next.add(statusId);
+      return next;
+    });
+  }
+
+  // Agrupa los contactos ya cargados por estatus, en el mismo orden del pipeline
+  // (statuses ya viene ordenado por `order` desde el backend). Como la carga es
+  // por scroll infinito, cada grupo refleja lo cargado hasta ahora, no el total
+  // real de ese estatus — por eso el contador junto al nombre de cada grupo es
+  // sobre lo visible, mientras que el header de la página sigue mostrando el
+  // total real de la búsqueda/filtro actual.
+  const groupedClients = useMemo(() => {
+    const byStatus = new Map();
+    for (const c of clients) {
+      const key = c.statusId ?? '__sin_estatus__';
+      if (!byStatus.has(key)) byStatus.set(key, []);
+      byStatus.get(key).push(c);
+    }
+    const groups = statuses
+      .map((s) => ({ id: s.id, name: s.name, items: byStatus.get(s.id) ?? [] }))
+      .filter((g) => g.items.length > 0);
+    const orphan = byStatus.get('__sin_estatus__');
+    if (orphan?.length) groups.push({ id: '__sin_estatus__', name: 'Sin estatus', items: orphan });
+    return groups;
+  }, [clients, statuses]);
 
   useEffect(() => {
     if (location.state?.openNew) navigate(location.pathname, { replace: true, state: {} });
@@ -235,7 +265,7 @@ export default function ClientsPage() {
       await api.delete(`/clients/${client.id}`);
       resetAndFetch();
     } catch (err) {
-      window.alert(err.response?.data?.error || 'No se pudo eliminar el cliente.');
+      window.alert(err.response?.data?.error || 'No se pudo eliminar el contacto.');
     }
   }
 
@@ -251,8 +281,8 @@ export default function ClientsPage() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Clientes</h1>
-          <p className="mt-0.5 text-sm text-slate-500">{total} clientes en total</p>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Contactos</h1>
+          <p className="mt-0.5 text-sm text-slate-500">{total} contactos en total</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-slate-300 bg-white p-0.5 text-sm shadow-sm">
@@ -282,7 +312,7 @@ export default function ClientsPage() {
             className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm shadow-orange-600/25 transition hover:bg-orange-700"
           >
             <Icon name="plus" className="h-4 w-4" />
-            Nuevo cliente
+            Nuevo contacto
           </button>
         </div>
       </div>
@@ -366,159 +396,180 @@ export default function ClientsPage() {
             </div>
           </div>
           <div ref={scrollRef} className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-slate-200 text-sm">
+            <table className="min-w-full border-separate border-spacing-0 text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Cliente</th>
-                  {visibleCols.contacto && <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Contacto</th>}
-                  <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Estatus</th>
-                  {visibleCols.agente && <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Agente</th>}
-                  {visibleCols.seguimiento && <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Próximo seguimiento</th>}
-                  {visibleCols.nota && <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Última nota</th>}
-                  {visibleCols.empresa && <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Empresa</th>}
-                  {visibleCols.direccion && <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Dirección</th>}
-                  {visibleCols.origen && <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Origen</th>}
-                  {visibleCols.etiquetas && <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Etiquetas</th>}
-                  <th className="whitespace-nowrap px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Acciones</th>
+                  <th className="sticky left-0 z-10 whitespace-nowrap border-b border-slate-200 bg-slate-50 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nombre</th>
+                  {visibleCols.contacto && <th className="whitespace-nowrap border-b border-slate-200 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Contacto</th>}
+                  <th className="whitespace-nowrap border-b border-slate-200 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Estatus</th>
+                  {visibleCols.agente && <th className="whitespace-nowrap border-b border-slate-200 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Agente</th>}
+                  {visibleCols.seguimiento && <th className="whitespace-nowrap border-b border-slate-200 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Próximo seguimiento</th>}
+                  {visibleCols.nota && <th className="whitespace-nowrap border-b border-slate-200 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Última nota</th>}
+                  {visibleCols.empresa && <th className="whitespace-nowrap border-b border-slate-200 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Empresa</th>}
+                  {visibleCols.direccion && <th className="whitespace-nowrap border-b border-slate-200 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Dirección</th>}
+                  {visibleCols.origen && <th className="whitespace-nowrap border-b border-slate-200 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Origen</th>}
+                  {visibleCols.etiquetas && <th className="whitespace-nowrap border-b border-slate-200 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Etiquetas</th>}
+                  <th className="whitespace-nowrap border-b border-slate-200 px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
-                {clients.map((c) => {
-                  const emails = c.email ? c.email.split(',').map((e) => e.trim()).filter(Boolean) : [];
-                  const lastNote = c.interactions?.[0];
+              <tbody>
+                {groupedClients.map((group) => {
+                  const palette = statusPalette(group.name);
+                  const isCollapsed = collapsedGroups.has(group.id);
                   return (
-                    <tr key={c.id} className="transition hover:bg-slate-50/70">
-                      <td className="px-5 py-3">
-                        <Link to={`/clients/${c.id}`} className="flex items-center gap-3">
-                          <Avatar name={c.fullName} className="h-9 w-9 shrink-0 text-xs" />
-                          <div>
-                            <div className="font-semibold text-slate-900 hover:text-orange-600">{c.fullName}</div>
-                            {c.source && !visibleCols.origen && <div className="text-xs text-slate-400">{c.source}</div>}
-                          </div>
-                        </Link>
-                      </td>
-                      {visibleCols.contacto && (
-                        <td className="px-5 py-3">
-                          <div className="flex items-center gap-1.5 whitespace-nowrap text-slate-600">
-                            <Icon name="phone" className="h-3.5 w-3.5 shrink-0 text-slate-400" />{c.phone}
-                          </div>
-                          {emails.length > 0 && (
-                            <div className="mt-0.5 flex items-center gap-1.5 whitespace-nowrap text-xs text-slate-400" title={emails.join(', ')}>
-                              <Icon name="mail" className="h-3.5 w-3.5 shrink-0" />
-                              <span className="max-w-[160px] truncate">{emails[0]}</span>
-                              {emails.length > 1 && (
-                                <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
-                                  +{emails.length - 1}
-                                </span>
-                              )}
-                            </div>
-                          )}
-                        </td>
-                      )}
-                      <td className="px-5 py-3">
-                        <select
-                          value={c.statusId}
-                          onChange={(e) => handleStatusChange(c.id, e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                          className={`cursor-pointer rounded-md border-0 py-1 pl-2.5 pr-6 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${colorForStatus(c.status?.name)}`}
-                        >
-                          {statuses.map((s) => <option key={s.id} value={s.id} className="bg-white text-slate-900">{s.name}</option>)}
-                        </select>
-                      </td>
-                      {visibleCols.agente && (
-                        <td className="px-5 py-3">
-                          {canFilterByAgent ? (
-                            <select
-                              value={c.assignedAgent?.id ?? ''}
-                              onChange={(e) => handleReassign(c.id, e.target.value)}
-                              onClick={(e) => e.stopPropagation()}
-                              className="cursor-pointer whitespace-nowrap rounded-md border border-transparent bg-transparent py-1 text-sm text-slate-600 hover:border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
-                            >
-                              <option value="">Sin asignar</option>
-                              {agents.map((a) => <option key={a.id} value={a.id}>{a.fullName}</option>)}
-                            </select>
-                          ) : c.assignedAgent ? (
-                            <div className="flex items-center gap-2 whitespace-nowrap text-slate-600">
-                              <Avatar name={c.assignedAgent.fullName} className="h-6 w-6 text-[9px]" />
-                              {c.assignedAgent.fullName}
-                            </div>
-                          ) : <span className="text-slate-400">Sin asignar</span>}
-                        </td>
-                      )}
-                      {visibleCols.seguimiento && (
-                        <td className="whitespace-nowrap px-5 py-3 text-slate-600">
-                          {c.nextFollowUpAt ? (
-                            <span className={`inline-flex items-center gap-1.5 ${new Date(c.nextFollowUpAt) < new Date() ? 'font-medium text-rose-600' : ''}`}>
-                              <Icon name="calendar" className="h-3.5 w-3.5" />
-                              {new Date(c.nextFollowUpAt).toLocaleDateString()}
-                            </span>
-                          ) : <span className="text-slate-300">—</span>}
-                        </td>
-                      )}
-                      {visibleCols.nota && (
-                        <td className="max-w-[260px] px-5 py-3">
-                          {lastNote ? (
-                            <div title={lastNote.notes}>
-                              <p className="truncate text-slate-700">{lastNote.notes}</p>
-                              <p className="text-xs text-slate-400">
-                                {lastNote.user?.fullName} · {new Date(lastNote.createdAt).toLocaleDateString()}
-                              </p>
-                            </div>
-                          ) : <span className="text-slate-300">Sin notas</span>}
-                        </td>
-                      )}
-                      {visibleCols.empresa && (
-                        <td className="whitespace-nowrap px-5 py-3 text-slate-600">
-                          {c.company ? (
-                            <Link to={`/companies/${c.company.id}`} className="hover:text-orange-600" onClick={(e) => e.stopPropagation()}>
-                              {c.company.name}
-                            </Link>
-                          ) : <span className="text-slate-300">—</span>}
-                        </td>
-                      )}
-                      {visibleCols.direccion && (
-                        <td className="max-w-[220px] truncate px-5 py-3 text-slate-600" title={c.address}>
-                          {c.address || <span className="text-slate-300">—</span>}
-                        </td>
-                      )}
-                      {visibleCols.origen && (
-                        <td className="whitespace-nowrap px-5 py-3 text-slate-600">{c.source || <span className="text-slate-300">—</span>}</td>
-                      )}
-                      {visibleCols.etiquetas && (
-                        <td className="px-5 py-3">
-                          <div className="flex flex-wrap gap-1">
-                            {c.tags?.length > 0 ? c.tags.map((t) => (
-                              <span key={t} className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">#{t}</span>
-                            )) : <span className="text-slate-300">—</span>}
-                          </div>
-                        </td>
-                      )}
-                      <td className="px-5 py-3">
-                        <div className="flex items-center justify-end gap-1">
+                    <Fragment key={group.id}>
+                      <tr>
+                        <td colSpan={colCount} className="p-0">
                           <button
-                            onClick={() => setNoteClient(c)}
-                            title="Agregar nota"
-                            className="rounded-lg p-2 text-slate-400 transition hover:bg-orange-50 hover:text-orange-600"
+                            onClick={() => toggleGroup(group.id)}
+                            className={`flex w-full items-center gap-2.5 border-b border-t border-slate-200 px-5 py-2 text-left transition hover:brightness-95 ${palette.chip}`}
                           >
-                            <Icon name="file" className="h-4 w-4" />
+                            <Icon name="chevronRight" className={`h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform ${isCollapsed ? '' : 'rotate-90'}`} />
+                            <span className={`h-2 w-2 shrink-0 rounded-full ${palette.dot}`} />
+                            <span className={`text-xs font-semibold uppercase tracking-wider ${palette.text}`}>{group.name}</span>
+                            <span className="text-xs font-medium text-slate-400">{group.items.length}</span>
                           </button>
-                          <button
-                            onClick={() => handleDelete(c)}
-                            title="Eliminar cliente"
-                            className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                          >
-                            <Icon name="trash" className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                        </td>
+                      </tr>
+                      {!isCollapsed && group.items.map((c) => {
+                        const emails = c.email ? c.email.split(',').map((e) => e.trim()).filter(Boolean) : [];
+                        const lastNote = c.interactions?.[0];
+                        return (
+                          <tr key={c.id} className="group transition hover:bg-slate-50/70">
+                            <td className={`sticky left-0 z-10 border-b border-b-slate-100 border-l-[3px] bg-white px-5 py-3.5 group-hover:bg-slate-50/70 ${palette.borderLeft}`}>
+                              <Link to={`/clients/${c.id}`} className="flex items-center gap-3">
+                                <Avatar name={c.fullName} className="h-9 w-9 shrink-0 text-xs" />
+                                <div>
+                                  <div className="font-semibold text-slate-900 hover:text-orange-600">{c.fullName}</div>
+                                  {c.source && !visibleCols.origen && <div className="text-xs text-slate-400">{c.source}</div>}
+                                </div>
+                              </Link>
+                            </td>
+                            {visibleCols.contacto && (
+                              <td className="border-b border-slate-100 px-5 py-3.5">
+                                <div className="flex items-center gap-1.5 whitespace-nowrap text-slate-600">
+                                  <Icon name="phone" className="h-3.5 w-3.5 shrink-0 text-slate-400" />{c.phone}
+                                </div>
+                                {emails.length > 0 && (
+                                  <div className="mt-0.5 flex items-center gap-1.5 whitespace-nowrap text-xs text-slate-400" title={emails.join(', ')}>
+                                    <Icon name="mail" className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="max-w-[160px] truncate">{emails[0]}</span>
+                                    {emails.length > 1 && (
+                                      <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
+                                        +{emails.length - 1}
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                            )}
+                            <td className="border-b border-slate-100 px-5 py-3.5">
+                              <select
+                                value={c.statusId}
+                                onChange={(e) => handleStatusChange(c.id, e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                className={`cursor-pointer rounded-md border-0 py-1 pl-2.5 pr-6 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${colorForStatus(c.status?.name)}`}
+                              >
+                                {statuses.map((s) => <option key={s.id} value={s.id} className="bg-white text-slate-900">{s.name}</option>)}
+                              </select>
+                            </td>
+                            {visibleCols.agente && (
+                              <td className="border-b border-slate-100 px-5 py-3.5">
+                                {canFilterByAgent ? (
+                                  <select
+                                    value={c.assignedAgent?.id ?? ''}
+                                    onChange={(e) => handleReassign(c.id, e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="cursor-pointer whitespace-nowrap rounded-md border border-transparent bg-transparent py-1 text-sm text-slate-600 hover:border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+                                  >
+                                    <option value="">Sin asignar</option>
+                                    {agents.map((a) => <option key={a.id} value={a.id}>{a.fullName}</option>)}
+                                  </select>
+                                ) : c.assignedAgent ? (
+                                  <div className="flex items-center gap-2 whitespace-nowrap text-slate-600">
+                                    <Avatar name={c.assignedAgent.fullName} className="h-6 w-6 text-[9px]" />
+                                    {c.assignedAgent.fullName}
+                                  </div>
+                                ) : <span className="text-slate-400">Sin asignar</span>}
+                              </td>
+                            )}
+                            {visibleCols.seguimiento && (
+                              <td className="whitespace-nowrap border-b border-slate-100 px-5 py-3.5 text-slate-600">
+                                {c.nextFollowUpAt ? (
+                                  <span className={`inline-flex items-center gap-1.5 ${new Date(c.nextFollowUpAt) < new Date() ? 'font-medium text-rose-600' : ''}`}>
+                                    <Icon name="calendar" className="h-3.5 w-3.5" />
+                                    {new Date(c.nextFollowUpAt).toLocaleDateString()}
+                                  </span>
+                                ) : <span className="text-slate-300">—</span>}
+                              </td>
+                            )}
+                            {visibleCols.nota && (
+                              <td className="max-w-[260px] border-b border-slate-100 px-5 py-3.5">
+                                {lastNote ? (
+                                  <div title={lastNote.notes}>
+                                    <p className="truncate text-slate-700">{lastNote.notes}</p>
+                                    <p className="text-xs text-slate-400">
+                                      {lastNote.user?.fullName} · {new Date(lastNote.createdAt).toLocaleDateString()}
+                                    </p>
+                                  </div>
+                                ) : <span className="text-slate-300">Sin notas</span>}
+                              </td>
+                            )}
+                            {visibleCols.empresa && (
+                              <td className="whitespace-nowrap border-b border-slate-100 px-5 py-3.5 text-slate-600">
+                                {c.company ? (
+                                  <Link to={`/companies/${c.company.id}`} className="hover:text-orange-600" onClick={(e) => e.stopPropagation()}>
+                                    {c.company.name}
+                                  </Link>
+                                ) : <span className="text-slate-300">—</span>}
+                              </td>
+                            )}
+                            {visibleCols.direccion && (
+                              <td className="max-w-[220px] truncate border-b border-slate-100 px-5 py-3.5 text-slate-600" title={c.address}>
+                                {c.address || <span className="text-slate-300">—</span>}
+                              </td>
+                            )}
+                            {visibleCols.origen && (
+                              <td className="whitespace-nowrap border-b border-slate-100 px-5 py-3.5 text-slate-600">{c.source || <span className="text-slate-300">—</span>}</td>
+                            )}
+                            {visibleCols.etiquetas && (
+                              <td className="border-b border-slate-100 px-5 py-3.5">
+                                <div className="flex flex-wrap gap-1">
+                                  {c.tags?.length > 0 ? c.tags.map((t) => (
+                                    <span key={t} className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">#{t}</span>
+                                  )) : <span className="text-slate-300">—</span>}
+                                </div>
+                              </td>
+                            )}
+                            <td className="border-b border-slate-100 px-5 py-3.5">
+                              <div className="flex items-center justify-end gap-1">
+                                <button
+                                  onClick={() => setNoteClient(c)}
+                                  title="Agregar nota"
+                                  className="rounded-lg p-2 text-slate-400 transition hover:bg-orange-50 hover:text-orange-600"
+                                >
+                                  <Icon name="file" className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(c)}
+                                  title="Eliminar contacto"
+                                  className="rounded-lg p-2 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                                >
+                                  <Icon name="trash" className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </Fragment>
                   );
                 })}
                 {clients.length === 0 && (
                   <tr>
                     <td colSpan={colCount} className="px-5 py-12 text-center">
                       <Icon name="clients" className="mx-auto h-8 w-8 text-slate-300" strokeWidth={1.5} />
-                      <p className="mt-2 text-sm text-slate-400">No hay clientes que coincidan.</p>
+                      <p className="mt-2 text-sm text-slate-400">No hay contactos que coincidan.</p>
                     </td>
                   </tr>
                 )}
@@ -529,10 +580,10 @@ export default function ClientsPage() {
             {loadingMore ? (
               <span className="inline-flex items-center gap-2">
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-orange-200 border-t-orange-600" />
-                Cargando más clientes...
+                Cargando más contactos...
               </span>
             ) : clients.length >= total ? (
-              <span className="text-slate-400">{total} clientes — no hay más.</span>
+              <span className="text-slate-400">{total} contactos — no hay más.</span>
             ) : null}
           </div>
         </div>

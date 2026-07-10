@@ -56,7 +56,7 @@ export default function QuickNoteModal({ client, onClose, onSaved }) {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Nota *</label>
-            <textarea required autoFocus rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} placeholder="¿Qué se habló con el cliente?" />
+            <textarea required autoFocus rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} className={inputCls} placeholder="¿Qué se habló con el contacto?" />
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700">Próximo seguimiento (opcional)</label>

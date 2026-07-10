@@ -51,7 +51,7 @@ export default function CompanyDetailPage() {
   }
 
   async function handleDelete() {
-    if (!window.confirm(`¿Eliminar la empresa "${company.name}"? Los clientes y negocios vinculados quedarán sin empresa asignada.`)) return;
+    if (!window.confirm(`¿Eliminar la empresa "${company.name}"? Los contactos y negocios vinculados quedarán sin empresa asignada.`)) return;
     await api.delete(`/companies/${id}`);
     navigate('/companies');
   }
@@ -138,7 +138,7 @@ export default function CompanyDetailPage() {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="mb-3 text-sm font-semibold text-slate-900">Clientes vinculados ({company.clients.length})</h2>
+          <h2 className="mb-3 text-sm font-semibold text-slate-900">Contactos vinculados ({company.clients.length})</h2>
           <div className="divide-y divide-slate-100">
             {company.clients.map((c) => (
               <div key={c.id} className="flex items-center justify-between py-2.5">
@@ -149,7 +149,7 @@ export default function CompanyDetailPage() {
                 <StatusBadge name={c.status?.name} />
               </div>
             ))}
-            {company.clients.length === 0 && <p className="py-4 text-sm text-slate-400">Sin clientes vinculados.</p>}
+            {company.clients.length === 0 && <p className="py-4 text-sm text-slate-400">Sin contactos vinculados.</p>}
           </div>
         </div>
 

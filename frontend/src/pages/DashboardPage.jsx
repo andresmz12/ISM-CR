@@ -84,7 +84,7 @@ export default function DashboardPage() {
     const url = window.URL.createObjectURL(new Blob([res.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'clientes.csv');
+    link.setAttribute('download', 'contactos.csv');
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -132,7 +132,7 @@ export default function DashboardPage() {
       )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {summary && <StatCard icon="clients" label="Total de clientes" value={summary.totalClients} accent="bg-orange-50 text-orange-600" />}
+        {summary && <StatCard icon="clients" label="Total de contactos" value={summary.totalClients} accent="bg-orange-50 text-orange-600" />}
         {report && <StatCard icon="briefcase" label="Pipeline abierto" value={formatAmount(report.pipelineValue)} accent="bg-amber-50 text-amber-600" />}
         <StatCard icon="calendar" label="Seguimientos hoy" value={tasks.today} accent="bg-sky-50 text-sky-600" />
         <StatCard icon="clock" label="Seguimientos vencidos" value={tasks.overdue} accent="bg-rose-50 text-rose-600" sub={tasks.overdue > 0 ? 'Requieren atención' : 'Todo al día'} />
@@ -155,7 +155,7 @@ export default function DashboardPage() {
             </div>
             <BarList
               items={summary.byStatus.map((s) => ({ key: s.statusId, label: s.statusName ?? '—', count: s.count }))}
-              emptyText="Sin clientes todavía."
+              emptyText="Sin contactos todavía."
             />
           </div>
 
@@ -191,7 +191,7 @@ export default function DashboardPage() {
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Agente</th>
-                <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Clientes</th>
+                <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Contactos</th>
                 <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Negocios</th>
                 <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Ganados</th>
                 <th className="px-5 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Valor ganado</th>

@@ -8,7 +8,7 @@ const STAGE_LABELS = {
   NEGOTIATION: 'Negociación', WON: 'Ganado', LOST: 'Perdido',
 };
 
-// Barra de búsqueda global del header: clientes, empresas y deals.
+// Barra de búsqueda global del header: contactos, empresas y deals.
 export default function GlobalSearch() {
   const navigate = useNavigate();
   const [q, setQ] = useState('');
@@ -52,7 +52,7 @@ export default function GlobalSearch() {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => { if (results) setOpen(true); }}
-        placeholder="Buscar clientes, empresas, deals..."
+        placeholder="Buscar contactos, empresas, deals..."
         className="w-full rounded-lg border border-slate-300 bg-slate-50 py-2 pl-9 pr-3 text-sm transition focus:border-orange-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-orange-500/20"
       />
       {open && results && (
@@ -61,7 +61,7 @@ export default function GlobalSearch() {
 
           {results.clients.length > 0 && (
             <div>
-              <p className="px-4 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Clientes</p>
+              <p className="px-4 pb-1 pt-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Contactos</p>
               {results.clients.map((c) => (
                 <button key={c.id} onClick={() => go(`/clients/${c.id}`)}
                   className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-slate-50">

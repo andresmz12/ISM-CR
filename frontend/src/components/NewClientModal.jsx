@@ -41,7 +41,7 @@ export default function NewClientModal({ statuses, agents, companies = [], proje
       onCreated(res.data);
       if (!res.data.duplicateWarning) onClose();
     } catch (err) {
-      setError(err.response?.data?.error || 'No se pudo crear el cliente.');
+      setError(err.response?.data?.error || 'No se pudo crear el contacto.');
     } finally {
       setSaving(false);
     }
@@ -53,7 +53,7 @@ export default function NewClientModal({ statuses, agents, companies = [], proje
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/40 p-4">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">Nuevo cliente</h2>
+          <h2 className="text-lg font-bold text-slate-900">Nuevo contacto</h2>
           <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
             <Icon name="x" className="h-5 w-5" />
           </button>
@@ -62,8 +62,8 @@ export default function NewClientModal({ statuses, agents, companies = [], proje
         {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
         {warning && (
           <div className="mb-3 rounded-md bg-amber-50 px-3 py-2 text-sm text-amber-800">
-            Posible duplicado: ya existe un cliente con este teléfono ({warning.map((w) => w.fullName).join(', ')}).
-            El cliente se creó de todos modos.
+            Posible duplicado: ya existe un contacto con este teléfono ({warning.map((w) => w.fullName).join(', ')}).
+            El contacto se creó de todos modos.
           </div>
         )}
 
@@ -102,7 +102,7 @@ export default function NewClientModal({ statuses, agents, companies = [], proje
               <label className="mb-1 block text-sm font-medium text-slate-700">Agente asignado</label>
               <select value={form.assignedAgentId} onChange={(e) => update('assignedAgentId', e.target.value)} className={inputCls}>
                 <option value="">Sin asignar</option>
-                {agents.length > 0 && <option value="__auto__">Automático (al agente con menos clientes)</option>}
+                {agents.length > 0 && <option value="__auto__">Automático (al agente con menos contactos)</option>}
                 {agents.map((a) => <option key={a.id} value={a.id}>{a.fullName}</option>)}
               </select>
             </div>
@@ -139,7 +139,7 @@ export default function NewClientModal({ statuses, agents, companies = [], proje
               Cancelar
             </button>
             <button type="submit" disabled={saving} className="rounded-lg bg-orange-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-50">
-              {saving ? 'Guardando...' : 'Crear cliente'}
+              {saving ? 'Guardando...' : 'Crear contacto'}
             </button>
           </div>
         </form>

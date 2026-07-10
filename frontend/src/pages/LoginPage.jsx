@@ -39,7 +39,7 @@ export default function LoginPage() {
         </div>
         <div className="relative">
           <h1 className="max-w-md text-4xl font-bold leading-tight text-white">
-            Todos tus clientes, en un solo lugar.
+            Todos tus contactos, en un solo lugar.
           </h1>
           <p className="mt-4 max-w-md text-zinc-400">
             Seguimiento comercial, historial de interacciones y tareas del día para todo el equipo.

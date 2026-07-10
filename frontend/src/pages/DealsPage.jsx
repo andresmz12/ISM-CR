@@ -116,7 +116,7 @@ export default function DealsPage() {
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Negocio</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Cliente</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Contacto</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Etapa</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Monto</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Dueño</th>
