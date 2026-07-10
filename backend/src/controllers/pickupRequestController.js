@@ -1,6 +1,7 @@
 const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
 const { fetchPickupRequestDetail, RecogidaPaqApiError } = require('../services/recogidaPaqClient');
+const { pickAutoAssignAgent } = require('../utils/autoAssign');
 
 const STATUS_MAP = {
   PENDING: 'Pendiente de recogida',
@@ -62,6 +63,8 @@ async function handlePickupRequest(req, res) {
     ? await prisma.client.findFirst({ where: { OR: [{ phoneNormalized: norm }, { phoneAltNormalized: norm }] } })
     : null;
   const systemUser = await findSystemUser();
+  // Round-robin solo para clientes nuevos — uno ya existente nunca cambia de agente por este webhook.
+  const autoAssignedAgentId = existingClient ? undefined : ((await pickAutoAssignAgent()) ?? undefined);
 
   const result = await prisma.$transaction(async (tx) => {
     let status = await tx.status.findUnique({ where: { name: statusName } });
@@ -101,6 +104,7 @@ async function handlePickupRequest(req, res) {
           source: 'RECOGIDA-PAQ',
           lastContactedAt: new Date(),
           projectId: process.env.RECOGIDA_PAQ_PROJECT_ID || undefined,
+          assignedAgentId: autoAssignedAgentId,
         },
       });
     }

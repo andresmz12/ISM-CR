@@ -38,6 +38,7 @@ const reassignSchema = z.object({ agentId: z.string().uuid() });
 const importSchema = z.object({
   duplicateAction: z.enum(['skip', 'create']).optional(),
   autoAssign: z.boolean().optional(),
+  projectId: z.string().uuid().optional(),
   rows: z.array(z.object({
     fullName: z.string(),
     phone: z.union([z.string(), z.number()]).transform(String),

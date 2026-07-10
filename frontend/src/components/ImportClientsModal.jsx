@@ -27,7 +27,7 @@ function guessMapping(headers) {
   return mapping;
 }
 
-export default function ImportClientsModal({ onClose, onImported }) {
+export default function ImportClientsModal({ projects = [], onClose, onImported }) {
   const [step, setStep] = useState('upload'); // upload | map | done
   const [fileName, setFileName] = useState('');
   const [headers, setHeaders] = useState([]);
@@ -35,6 +35,7 @@ export default function ImportClientsModal({ onClose, onImported }) {
   const [mapping, setMapping] = useState({});
   const [duplicateAction, setDuplicateAction] = useState('skip');
   const [autoAssign, setAutoAssign] = useState(false);
+  const [projectId, setProjectId] = useState('');
   const [error, setError] = useState('');
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState(null);
@@ -105,7 +106,7 @@ export default function ImportClientsModal({ onClose, onImported }) {
           tags: get('tags') ? get('tags').split(/[,;]/).map((t) => t.trim()).filter(Boolean) : undefined,
         };
       }).filter((r) => r.fullName || r.phone);
-      const res = await api.post('/clients/import', { rows: payload, duplicateAction, autoAssign });
+      const res = await api.post('/clients/import', { rows: payload, duplicateAction, autoAssign, projectId: projectId || undefined });
       setResult(res.data);
       setStep('done');
       onImported();
@@ -238,6 +239,19 @@ export default function ImportClientsModal({ onClose, onImported }) {
                   <input type="checkbox" checked={autoAssign} onChange={(e) => setAutoAssign(e.target.checked)} className="accent-orange-600" />
                   Repartir automáticamente las filas sin agente entre los agentes activos (round-robin)
                 </label>
+              </div>
+
+              <div>
+                <h3 className="mb-2 text-sm font-semibold text-slate-800">5. Proyecto (opcional)</h3>
+                <select
+                  value={projectId}
+                  onChange={(e) => setProjectId(e.target.value)}
+                  className="w-full max-w-xs rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-orange-500 focus:outline-none"
+                >
+                  <option value="">Sin proyecto</option>
+                  {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <p className="mt-1 text-xs text-slate-500">Se asigna a todos los clientes que se creen en esta importación.</p>
               </div>
 
               <div className="flex justify-end gap-2 border-t border-slate-100 pt-4">

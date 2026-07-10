@@ -73,13 +73,17 @@ export default function ClientsPage() {
   const [statuses, setStatuses] = useState([]);
   const [agents, setAgents] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [clients, setClients] = useState([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [statusId, setStatusId] = useState('');
   const [assignedAgentId, setAssignedAgentId] = useState('');
+  const [companyId, setCompanyId] = useState('');
+  const [projectId, setProjectId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [showNewModal, setShowNewModal] = useState(!!location.state?.openNew);
   const [showImportModal, setShowImportModal] = useState(false);
   const [noteClient, setNoteClient] = useState(null);
@@ -88,6 +92,7 @@ export default function ClientsPage() {
   const [savedFilters, setSavedFilters] = useState([]);
   const [activeFilterId, setActiveFilterId] = useState('');
   const scrollRef = useRef(null);
+  const sentinelRef = useRef(null);
 
   useEffect(() => {
     if (location.state?.openNew) navigate(location.pathname, { replace: true, state: {} });
@@ -103,17 +108,32 @@ export default function ClientsPage() {
 
   const pageSize = view === 'kanban' ? 200 : 25;
 
-  const fetchClients = useCallback(() => {
-    setLoading(true);
-    const params = { page, pageSize, search: search || undefined, statusId: statusId || undefined, assignedAgentId: assignedAgentId || undefined };
+  const fetchClients = useCallback((pageToLoad = page) => {
+    const append = pageToLoad > 1;
+    if (append) setLoadingMore(true); else setLoading(true);
+    const params = {
+      page: pageToLoad, pageSize, search: search || undefined, statusId: statusId || undefined,
+      assignedAgentId: assignedAgentId || undefined, companyId: companyId || undefined, projectId: projectId || undefined,
+    };
     return api.get('/clients', { params })
-      .then((res) => { setClients(res.data.items); setTotal(res.data.total); })
-      .finally(() => setLoading(false));
-  }, [page, pageSize, search, statusId, assignedAgentId]);
+      .then((res) => {
+        setClients((prev) => (append ? [...prev, ...res.data.items] : res.data.items));
+        setTotal(res.data.total);
+      })
+      .finally(() => { if (append) setLoadingMore(false); else setLoading(false); });
+  }, [page, pageSize, search, statusId, assignedAgentId, companyId, projectId]);
+
+  // Vuelve a la primera página en modo reemplazo — para usar después de crear,
+  // importar, eliminar o cuando falla una actualización optimista, sin importar
+  // en qué página del scroll infinito estaba el usuario.
+  const resetAndFetch = useCallback(() => {
+    if (page === 1) fetchClients(1); else setPage(1);
+  }, [page, fetchClients]);
 
   useEffect(() => {
     api.get('/statuses').then((res) => setStatuses(res.data));
     api.get('/companies').then((res) => setCompanies(res.data)).catch(() => {});
+    api.get('/projects').then((res) => setProjects(res.data)).catch(() => {});
     api.get('/saved-filters').then((res) => setSavedFilters(res.data)).catch(() => {});
     if (canFilterByAgent) {
       api.get('/users').then((res) => setAgents(res.data.filter((u) => u.active))).catch(() => {});
@@ -127,6 +147,8 @@ export default function ClientsPage() {
     setSearch(filters.search ?? '');
     setStatusId(filters.statusId ?? '');
     setAssignedAgentId(filters.assignedAgentId ?? '');
+    setCompanyId(filters.companyId ?? '');
+    setProjectId(filters.projectId ?? '');
     setPage(1);
   }
 
@@ -137,6 +159,8 @@ export default function ClientsPage() {
     if (search) filters.search = search;
     if (statusId) filters.statusId = statusId;
     if (assignedAgentId) filters.assignedAgentId = assignedAgentId;
+    if (companyId) filters.companyId = companyId;
+    if (projectId) filters.projectId = projectId;
     const res = await api.post('/saved-filters', { name: name.trim(), filters });
     setSavedFilters((prev) => [...prev, res.data]);
     setActiveFilterId(res.data.id);
@@ -153,6 +177,22 @@ export default function ClientsPage() {
 
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
+  // Scroll infinito: al acercarse al final de la tabla, pide la siguiente
+  // página y la concatena (fetchClients hace append cuando pageToLoad > 1).
+  useEffect(() => {
+    if (view !== 'table') return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const canLoadMore = !loading && !loadingMore && clients.length < total;
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && canLoadMore) {
+        setPage((p) => p + 1);
+      }
+    }, { rootMargin: '200px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [view, loading, loadingMore, clients.length, total]);
+
   useEffect(() => {
     if (!flashMessage) return;
     const t = setTimeout(() => setFlashMessage(''), 3500);
@@ -164,7 +204,7 @@ export default function ClientsPage() {
     try {
       await api.patch(`/clients/${clientId}`, { statusId: newStatusId });
     } catch {
-      fetchClients();
+      resetAndFetch();
     }
   }
 
@@ -174,7 +214,7 @@ export default function ClientsPage() {
     try {
       await api.patch(`/clients/${clientId}`, { statusId: newStatusId });
     } catch {
-      fetchClients();
+      resetAndFetch();
     }
   }
 
@@ -185,7 +225,7 @@ export default function ClientsPage() {
     try {
       await api.post(`/clients/${clientId}/reassign`, { agentId });
     } catch {
-      fetchClients();
+      resetAndFetch();
     }
   }
 
@@ -193,7 +233,7 @@ export default function ClientsPage() {
     if (!window.confirm(`¿Eliminar a "${client.fullName}"? Esta acción no se puede deshacer.`)) return;
     try {
       await api.delete(`/clients/${client.id}`);
-      fetchClients();
+      resetAndFetch();
     } catch (err) {
       window.alert(err.response?.data?.error || 'No se pudo eliminar el cliente.');
     }
@@ -202,8 +242,6 @@ export default function ClientsPage() {
   function scrollTable(amount) {
     scrollRef.current?.scrollBy({ left: amount, behavior: 'smooth' });
   }
-
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
   const inputCls = 'rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20';
 
@@ -269,6 +307,14 @@ export default function ClientsPage() {
             {agents.map((a) => <option key={a.id} value={a.id}>{a.fullName}</option>)}
           </select>
         )}
+        <select value={companyId} onChange={(e) => { setCompanyId(e.target.value); setPage(1); }} className={inputCls}>
+          <option value="">Todas las empresas</option>
+          {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+        <select value={projectId} onChange={(e) => { setProjectId(e.target.value); setPage(1); }} className={inputCls}>
+          <option value="">Todos los proyectos</option>
+          {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
         <div className="flex items-center gap-1.5">
           <select value={activeFilterId} onChange={(e) => applySavedFilter(e.target.value)} className={inputCls}>
             <option value="">Vistas guardadas...</option>
@@ -479,18 +525,15 @@ export default function ClientsPage() {
               </tbody>
             </table>
           </div>
-          <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50/50 px-5 py-3 text-sm text-slate-600">
-            <span>Página {page} de {totalPages}</span>
-            <div className="flex gap-1">
-              <button disabled={page <= 1} onClick={() => setPage((p) => p - 1)}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium shadow-sm transition hover:bg-slate-50 disabled:opacity-40">
-                <Icon name="chevronLeft" className="h-4 w-4" /> Anterior
-              </button>
-              <button disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium shadow-sm transition hover:bg-slate-50 disabled:opacity-40">
-                Siguiente <Icon name="chevronRight" className="h-4 w-4" />
-              </button>
-            </div>
+          <div ref={sentinelRef} className="flex items-center justify-center border-t border-slate-200 bg-slate-50/50 px-5 py-3 text-sm text-slate-500">
+            {loadingMore ? (
+              <span className="inline-flex items-center gap-2">
+                <span className="h-4 w-4 animate-spin rounded-full border-2 border-orange-200 border-t-orange-600" />
+                Cargando más clientes...
+              </span>
+            ) : clients.length >= total ? (
+              <span className="text-slate-400">{total} clientes — no hay más.</span>
+            ) : null}
           </div>
         </div>
       )}
@@ -500,21 +543,23 @@ export default function ClientsPage() {
           statuses={statuses}
           agents={agents}
           companies={companies}
+          projects={projects}
           onClose={() => setShowNewModal(false)}
-          onCreated={() => fetchClients()}
+          onCreated={() => resetAndFetch()}
         />
       )}
       {showImportModal && (
         <ImportClientsModal
+          projects={projects}
           onClose={() => setShowImportModal(false)}
-          onImported={() => fetchClients()}
+          onImported={() => resetAndFetch()}
         />
       )}
       {noteClient && (
         <QuickNoteModal
           client={noteClient}
           onClose={() => setNoteClient(null)}
-          onSaved={() => { setNoteClient(null); setFlashMessage(`Nota agregada a ${noteClient.fullName}.`); fetchClients(); }}
+          onSaved={() => { setNoteClient(null); setFlashMessage(`Nota agregada a ${noteClient.fullName}.`); resetAndFetch(); }}
         />
       )}
     </div>

@@ -2,10 +2,10 @@ import { useState } from 'react';
 import api from '../api/client';
 import Icon from './Icon';
 
-export default function NewClientModal({ statuses, agents, companies = [], onClose, onCreated }) {
+export default function NewClientModal({ statuses, agents, companies = [], projects = [], onClose, onCreated }) {
   const [form, setForm] = useState({
     fullName: '', phone: '', phoneAlt: '', email: '', address: '',
-    statusId: '', assignedAgentId: '', companyId: '', source: '', tags: '',
+    statusId: '', assignedAgentId: '', companyId: '', projectId: '', source: '', tags: '',
   });
   const [error, setError] = useState('');
   const [warning, setWarning] = useState(null);
@@ -30,6 +30,7 @@ export default function NewClientModal({ statuses, agents, companies = [], onClo
         assignedAgentId: form.assignedAgentId === '__auto__' ? undefined : (form.assignedAgentId || undefined),
         autoAssign: form.assignedAgentId === '__auto__' || undefined,
         companyId: form.companyId || undefined,
+        projectId: form.projectId || undefined,
         source: form.source || undefined,
         tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : undefined,
       };
@@ -106,12 +107,21 @@ export default function NewClientModal({ statuses, agents, companies = [], onClo
               </select>
             </div>
           </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Empresa</label>
-            <select value={form.companyId} onChange={(e) => update('companyId', e.target.value)} className={inputCls}>
-              <option value="">Sin empresa</option>
-              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Empresa</label>
+              <select value={form.companyId} onChange={(e) => update('companyId', e.target.value)} className={inputCls}>
+                <option value="">Sin empresa</option>
+                {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700">Proyecto</label>
+              <select value={form.projectId} onChange={(e) => update('projectId', e.target.value)} className={inputCls}>
+                <option value="">Sin proyecto</option>
+                {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

@@ -68,7 +68,7 @@ async function findDuplicates(phone, phoneAlt, excludeId) {
 }
 
 async function listClients(req, res) {
-  const { search, statusId, assignedAgentId, tag, page = '1', pageSize = '25' } = req.query;
+  const { search, statusId, assignedAgentId, companyId, projectId, tag, page = '1', pageSize = '25' } = req.query;
   const where = { ...(await clientScopeFilter(req.user)) };
 
   if (search) {
@@ -81,6 +81,8 @@ async function listClients(req, res) {
   }
   if (statusId) where.statusId = statusId;
   if (assignedAgentId && req.user.role !== 'AGENT') where.assignedAgentId = assignedAgentId;
+  if (companyId) where.companyId = companyId;
+  if (projectId) where.projectId = projectId;
   if (tag) where.tags = { has: tag };
 
   const take = Math.min(parseInt(pageSize, 10) || 25, 100);
@@ -398,7 +400,7 @@ async function mergeClients(req, res) {
 }
 
 async function importClients(req, res) {
-  const { rows, duplicateAction = 'skip', autoAssign = false } = req.body;
+  const { rows, duplicateAction = 'skip', autoAssign = false, projectId } = req.body;
 
   // Para repartir filas sin agente cuando se pide auto-asignación: se parte de
   // la carga actual y se va incrementando en memoria para que el lote quede parejo.
@@ -468,6 +470,7 @@ async function importClients(req, res) {
       assignedAgentId: req.user.role === 'AGENT'
         ? req.user.sub
         : (row.assignedAgentId || nextAgentId()),
+      projectId: projectId || undefined,
     });
   });
 
