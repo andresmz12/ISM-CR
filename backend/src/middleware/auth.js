@@ -73,22 +73,30 @@ async function requireProjectAccess(req, res, next) {
   next();
 }
 
-// Verifica la firma HMAC-SHA256 de un webhook externo (RECOGIDA-PAQ) contra los
-// bytes crudos del body (req.rawBody, capturados en app.js antes del parseo JSON).
-function requireWebhookSignature(req, res, next) {
-  const signature = req.headers['x-recogidapaq-signature'];
-  const secret = process.env.WEBHOOK_SECRET;
-  if (!signature || !secret || !req.rawBody) {
-    return res.status(401).json({ error: 'Missing signature' });
-  }
+// Verifica la firma HMAC-SHA256 de un webhook externo contra los bytes crudos
+// del body (req.rawBody, capturados en app.js antes del parseo JSON). Cada
+// integración manda la firma en su propio header y algunas la prefijan
+// (p. ej. ZyraVoice manda "sha256=<hex>", RECOGIDA-PAQ manda el hex pelado).
+function requireWebhookSignature({ headerName, secretEnvVar, prefix = '' }) {
+  return (req, res, next) => {
+    const rawSignature = req.headers[headerName];
+    const secret = process.env[secretEnvVar];
+    if (!rawSignature || !secret || !req.rawBody) {
+      return res.status(401).json({ error: 'Missing signature' });
+    }
 
-  const expected = crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex');
-  const provided = Buffer.from(String(signature), 'utf8');
-  const expectedBuf = Buffer.from(expected, 'utf8');
-  if (provided.length !== expectedBuf.length || !crypto.timingSafeEqual(provided, expectedBuf)) {
-    return res.status(401).json({ error: 'Invalid signature' });
-  }
-  next();
+    const signature = prefix && String(rawSignature).startsWith(prefix)
+      ? String(rawSignature).slice(prefix.length)
+      : String(rawSignature);
+
+    const expected = crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex');
+    const provided = Buffer.from(signature, 'utf8');
+    const expectedBuf = Buffer.from(expected, 'utf8');
+    if (provided.length !== expectedBuf.length || !crypto.timingSafeEqual(provided, expectedBuf)) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+    next();
+  };
 }
 
 module.exports = { requireAuth, requireRole, requireApiKey, requireProjectAccess, requireWebhookSignature };

@@ -26,6 +26,11 @@ const pickupRequestSchema = z.object({
  *       401: { description: Firma inválida }
  *       502: { description: No se pudo obtener el detalle desde RECOGIDA-PAQ }
  */
-router.post('/', requireWebhookSignature, validate(pickupRequestSchema), handlePickupRequest);
+router.post(
+  '/',
+  requireWebhookSignature({ headerName: 'x-recogidapaq-signature', secretEnvVar: 'WEBHOOK_SECRET' }),
+  validate(pickupRequestSchema),
+  handlePickupRequest
+);
 
 module.exports = router;

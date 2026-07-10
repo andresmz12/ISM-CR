@@ -13,6 +13,7 @@ const clientRoutes = require('./routes/clientRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const integrationRoutes = require('./routes/integrationRoutes');
 const pickupRequestRoutes = require('./routes/pickupRequestRoutes');
+const callRoutes = require('./routes/callRoutes');
 const companyRoutes = require('./routes/companyRoutes');
 const dealRoutes = require('./routes/dealRoutes');
 const reportRoutes = require('./routes/reportRoutes');
@@ -49,9 +50,10 @@ app.use('/api/users', userRoutes);
 app.use('/api/statuses', statusRoutes);
 app.use('/api/clients', clientRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-// Debe ir antes de /api/integrations: ese router aplica requireApiKey a todo
-// lo que cuelgue de él, y este webhook usa autenticación HMAC en su lugar.
+// Deben ir antes de /api/integrations: ese router aplica requireApiKey a todo
+// lo que cuelgue de él, y estos webhooks usan autenticación HMAC en su lugar.
 app.use('/api/integrations/pickup-requests', pickupRequestRoutes);
+app.use('/api/integrations/calls', callRoutes);
 app.use('/api/integrations', integrationRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/deals', dealRoutes);
