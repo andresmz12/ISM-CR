@@ -73,6 +73,27 @@ async function requireProjectAccess(req, res, next) {
   next();
 }
 
+// Mismo criterio que requireProjectAccess, pero para Workspace (agrupación de
+// clientes/agenda/dashboard por equipo, sin tableros de tareas).
+async function requireWorkspaceAccess(req, res, next) {
+  const { workspaceId } = req.params;
+  const isPrivileged = req.user.role === 'ADMIN' || req.user.role === 'SUPERVISOR';
+
+  const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
+  if (!workspace) return res.status(404).json({ error: 'Workspace not found' });
+
+  if (!isPrivileged) {
+    const membership = await prisma.workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId: req.user.sub } },
+    });
+    if (!membership) return res.status(404).json({ error: 'Workspace not found' });
+  }
+
+  req.workspace = workspace;
+  req.isWorkspacePrivileged = isPrivileged;
+  next();
+}
+
 // Verifica la firma HMAC-SHA256 de un webhook externo contra los bytes crudos
 // del body (req.rawBody, capturados en app.js antes del parseo JSON). Cada
 // integración manda la firma en su propio header y algunas la prefijan
@@ -99,4 +120,6 @@ function requireWebhookSignature({ headerName, secretEnvVar, prefix = '' }) {
   };
 }
 
-module.exports = { requireAuth, requireRole, requireApiKey, requireProjectAccess, requireWebhookSignature };
+module.exports = {
+  requireAuth, requireRole, requireApiKey, requireProjectAccess, requireWorkspaceAccess, requireWebhookSignature,
+};

@@ -277,6 +277,11 @@ export default function ClientDetailPage() {
                   <Icon name="building" className="h-3.5 w-3.5" />{client.company.name}
                 </Link>
               )}
+              {client.workspace && (
+                <Link to={`/workspaces/${client.workspace.id}`} className="mt-1 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-orange-600">
+                  <Icon name="users" className="h-3.5 w-3.5" />{client.workspace.name}
+                </Link>
+              )}
               <ShipmentCard client={client} />
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <StatusBadge name={client.status?.name} />

@@ -62,6 +62,7 @@ model User {
   assignedProjectTasks ProjectTask[]
   savedFilters         SavedFilter[]
   attachments          Attachment[]
+  workspaceMemberships WorkspaceMember[]
 
   @@map("users")
 }
@@ -107,6 +108,11 @@ model Client {
   // tratan como "visibles sin restricción de proyecto" (ver clientScope.js).
   projectId          String?
   project            Project?  @relation(fields: [projectId], references: [id])
+  // Empresa (equipo de acceso) a la que pertenece este cliente — agrupa clientes
+  // y agenda/dashboard por equipo de trabajo. Opcional, mismo criterio que projectId:
+  // los clientes sin workspaceId siguen visibles sin restricción (ver clientScope.js).
+  workspaceId        String?
+  workspace          Workspace? @relation(fields: [workspaceId], references: [id])
   // Destinatario de la recogida más reciente (RECOGIDA-PAQ). Se sobreescribe en
   // cada webhook, igual que `address` — un cliente puede pedir varias recogidas
   // con destinatarios distintos y esto solo refleja la más reciente.
@@ -123,6 +129,7 @@ model Client {
 
   @@index([statusId])
   @@index([assignedAgentId])
+  @@index([workspaceId])
   @@index([phone])
   @@index([phoneNormalized])
   @@index([phoneAltNormalized])
@@ -310,6 +317,36 @@ model ProjectMember {
   @@unique([projectId, userId])
   @@index([userId])
   @@map("project_members")
+}
+
+// Equipo de acceso que agrupa clientes ("Empresa" en la UI): a diferencia de
+// Project (que además trae tableros de tareas/secciones), Workspace solo agrupa
+// clientes y controla quién los ve — el Kanban/Agenda/Dashboard filtrados por
+// workspace reutilizan las vistas de Client existentes.
+model Workspace {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members WorkspaceMember[]
+  clients Client[]
+
+  @@index([name])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String    @id @default(uuid())
+  workspaceId String
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_members")
 }
 
 model ProjectSection {

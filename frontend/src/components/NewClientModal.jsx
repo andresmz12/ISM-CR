@@ -2,7 +2,7 @@ import { useState } from 'react';
 import api from '../api/client';
 import Icon from './Icon';
 
-export default function NewClientModal({ statuses, agents, companies = [], projects = [], onClose, onCreated }) {
+export default function NewClientModal({ statuses, agents, companies = [], projects = [], workspaceId, onClose, onCreated }) {
   const [form, setForm] = useState({
     fullName: '', phone: '', phoneAlt: '', email: '', address: '',
     statusId: '', assignedAgentId: '', companyId: '', projectId: '', source: '', tags: '',
@@ -31,6 +31,7 @@ export default function NewClientModal({ statuses, agents, companies = [], proje
         autoAssign: form.assignedAgentId === '__auto__' || undefined,
         companyId: form.companyId || undefined,
         projectId: form.projectId || undefined,
+        workspaceId: workspaceId || undefined,
         source: form.source || undefined,
         tags: form.tags ? form.tags.split(',').map((t) => t.trim()).filter(Boolean) : undefined,
       };

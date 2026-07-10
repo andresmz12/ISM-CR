@@ -30,6 +30,12 @@ const navSections = [
     ],
   },
   {
+    title: 'Equipos',
+    items: [
+      { to: '/workspaces', label: 'Empresas', icon: 'building', roles: ['ADMIN', 'SUPERVISOR', 'AGENT'] },
+    ],
+  },
+  {
     title: 'Administración',
     items: [
       { to: '/admin/users', label: 'Usuarios', icon: 'users', roles: ['ADMIN'] },
