@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Icon from '../components/Icon';
+import BrandMark from '../components/BrandMark';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -33,9 +34,7 @@ export default function LoginPage() {
         <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-orange-600/20 blur-3xl" />
         <div className="absolute -bottom-40 -right-24 h-96 w-96 rounded-full bg-amber-500/10 blur-3xl" />
         <div className="relative flex items-center gap-3">
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-sm font-bold text-white shadow-lg shadow-orange-500/30">
-            ISM
-          </span>
+          <BrandMark className="h-10 w-10" imgClassName="h-7 w-7" />
           <span className="text-lg font-semibold text-white">ISM CRM</span>
         </div>
         <div className="relative">
@@ -61,9 +60,7 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit} className="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-900/5">
           <div className="mb-6 flex items-center gap-3 md:hidden">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-sm font-bold text-white shadow-md shadow-orange-500/30">
-              ISM
-            </span>
+            <BrandMark className="h-10 w-10" imgClassName="h-7 w-7" />
             <span className="text-base font-semibold text-slate-900">ISM CRM</span>
           </div>
 

@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Icon, { Avatar } from './Icon';
 import GlobalSearch from './GlobalSearch';
+import BrandMark from './BrandMark';
 
 // Navegación empresa-primero: los contactos, la agenda y las tareas viven DENTRO
 // de cada empresa (pestañas de su detalle), nunca como listas globales mezcladas.
@@ -48,9 +49,7 @@ export default function Layout() {
       )}
       <aside className={`fixed inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col bg-zinc-950 transition-transform md:static md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center gap-3 px-5 py-5">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-sm font-bold text-white shadow-lg shadow-orange-500/30">
-            ISM
-          </span>
+          <BrandMark />
           <div>
             <div className="text-sm font-semibold text-white">ISM CRM</div>
             <div className="text-[11px] text-zinc-500">Gestión de contactos</div>
