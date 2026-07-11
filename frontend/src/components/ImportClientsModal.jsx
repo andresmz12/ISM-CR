@@ -108,7 +108,10 @@ export default function ImportClientsModal({ projects = [], lockedProjectId, onC
         Papa.parse(file, {
           skipEmptyLines: true,
           complete: (results) => finishParsing(file, results.data),
-          error: () => setError('No se pudo leer el archivo. Usa un .xlsx o .csv válido.'),
+          error: (err) => {
+            console.error('[import] csv parse error:', err);
+            setError(`No se pudo leer el archivo (${err.message || 'error desconocido'}). Usa un .xlsx o .csv válido.`);
+          },
         });
         return;
       }
@@ -124,8 +127,17 @@ export default function ImportClientsModal({ projects = [], lockedProjectId, onC
         return;
       }
       finishParsing(file, sheetToRows(worksheet));
-    } catch {
-      setError('No se pudo leer el archivo. Usa un .xlsx o .csv válido.');
+    } catch (err) {
+      console.error('[import] parse error:', err);
+      // Un deploy nuevo cambia el nombre del archivo de exceljs; una pestaña
+      // abierta desde antes pide el archivo viejo (404) al recién cargarlo acá.
+      // window.location.reload() ya debería dispararse solo (ver main.jsx,
+      // evento vite:preloadError) — este mensaje es un respaldo por si no llega a tiempo.
+      if (/dynamically imported module|error loading dynamically imported module/i.test(err.message || '')) {
+        setError('La aplicación se actualizó. Recargá la página (Cmd/Ctrl+R) e intentá de nuevo.');
+        return;
+      }
+      setError(`No se pudo leer el archivo (${err.message || 'error desconocido'}). Usa un .xlsx o .csv válido.`);
     }
   }
 
