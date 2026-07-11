@@ -133,7 +133,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {summary && <StatCard icon="clients" label="Total de contactos" value={summary.totalClients} accent="bg-orange-50 text-orange-600" />}
-        {report && <StatCard icon="briefcase" label="Pipeline abierto" value={formatAmount(report.pipelineValue)} accent="bg-amber-50 text-amber-600" />}
+        {report && <StatCard icon="briefcase" label="Negocios en curso" value={formatAmount(report.pipelineValue)} accent="bg-amber-50 text-amber-600" />}
         <StatCard icon="calendar" label="Seguimientos hoy" value={tasks.today} accent="bg-sky-50 text-sky-600" />
         <StatCard icon="clock" label="Seguimientos vencidos" value={tasks.overdue} accent="bg-rose-50 text-rose-600" sub={tasks.overdue > 0 ? 'Requieren atención' : 'Todo al día'} />
       </div>
@@ -151,7 +151,7 @@ export default function DashboardPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <div className="mb-4 flex items-center gap-2">
               <Icon name="chart" className="h-4 w-4 text-slate-400" />
-              <h2 className="text-sm font-semibold text-slate-900">Pipeline por estatus</h2>
+              <h2 className="text-sm font-semibold text-slate-900">Contactos por estatus</h2>
             </div>
             <BarList
               items={summary.byStatus.map((s) => ({ key: s.statusId, label: s.statusName ?? '—', count: s.count }))}

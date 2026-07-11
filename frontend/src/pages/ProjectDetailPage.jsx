@@ -558,7 +558,7 @@ function DashboardTab({ projectId }) {
         <div className="text-3xl font-bold tracking-tight text-slate-900">{data.totalClients}</div>
       </div>
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="mb-4 text-sm font-semibold text-slate-900">Pipeline por estatus</h2>
+        <h2 className="mb-4 text-sm font-semibold text-slate-900">Clientes por estatus</h2>
         <BarList
           items={data.byStatus.map((s) => ({ key: s.statusId, label: s.statusName ?? '—', count: s.count }))}
           emptyText="Sin clientes todavía."

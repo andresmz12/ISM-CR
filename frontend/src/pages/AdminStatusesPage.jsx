@@ -49,7 +49,7 @@ export default function AdminStatusesPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight text-slate-900">Estatus de contactos</h1>
-        <p className="mt-0.5 text-sm text-slate-500">Configura las etapas del pipeline de contactos</p>
+        <p className="mt-0.5 text-sm text-slate-500">Configura las etapas del seguimiento de contactos</p>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

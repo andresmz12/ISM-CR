@@ -68,7 +68,7 @@ export default function DealsPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">Negocios</h1>
-          <p className="mt-0.5 text-sm text-slate-500">{deals.length} negocios · pipeline abierto {formatAmount(totalPipeline)}</p>
+          <p className="mt-0.5 text-sm text-slate-500">{deals.length} negocios · en curso {formatAmount(totalPipeline)}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-slate-300 bg-white p-0.5 text-sm shadow-sm">
