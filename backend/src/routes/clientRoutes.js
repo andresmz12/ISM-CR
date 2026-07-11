@@ -51,7 +51,7 @@ const importSchema = z.object({
     tags: z.array(z.string()).optional(),
     statusName: z.string().optional(),
     assignedAgentId: z.string().uuid().optional(),
-  })).min(1).max(2000),
+  })).min(1).max(5000),
 });
 
 /**

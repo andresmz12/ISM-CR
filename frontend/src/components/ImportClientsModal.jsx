@@ -3,6 +3,7 @@ import api from '../api/client';
 import Icon from './Icon';
 
 const NEW_LIST_VALUE = '__new__';
+const MAX_ROWS = 5000;
 
 const FIELDS = [
   { key: 'fullName', label: 'Nombre completo', required: true, hints: ['nombre', 'name', 'cliente', 'full name', 'fullname'] },
@@ -80,10 +81,19 @@ export default function ImportClientsModal({ projects = [], lockedProjectId, onC
       setError('El archivo no tiene datos (se espera una fila de encabezados y al menos un contacto).');
       return;
     }
-    const [head, ...body] = nonEmpty;
-    if (body.length > 2000) {
-      setError(`El archivo tiene ${body.length} filas; el máximo por importación es 2000. Divide el archivo e intenta de nuevo.`);
-      return;
+    const [head, ...rest] = nonEmpty;
+    let body = rest;
+    if (body.length > MAX_ROWS) {
+      const proceed = window.confirm(
+        `El archivo tiene ${body.length} filas; el máximo por importación es ${MAX_ROWS}. ` +
+        `¿Querés importar solo las primeras ${MAX_ROWS} y dejar el resto afuera? ` +
+        `Cancelá para elegir otro archivo y no importar nada.`
+      );
+      if (!proceed) {
+        setError(`El archivo tiene ${body.length} filas; el máximo por importación es ${MAX_ROWS}. Divide el archivo e intenta de nuevo.`);
+        return;
+      }
+      body = body.slice(0, MAX_ROWS);
     }
     setFileName(file.name);
     setHeaders(head.map((h) => String(h)));
@@ -208,7 +218,7 @@ export default function ImportClientsModal({ projects = [], lockedProjectId, onC
             </span>
             <div>
               <h2 className="text-base font-semibold text-slate-900">Importar contactos desde Excel</h2>
-              <p className="text-xs text-slate-500">Acepta .xlsx y .csv — máximo 2000 filas por archivo</p>
+              <p className="text-xs text-slate-500">Acepta .xlsx y .csv — máximo {MAX_ROWS} filas por archivo</p>
             </div>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">

@@ -526,9 +526,12 @@ async function importClients(req, res) {
       // createMany no admite relaciones anidadas (no hay forma de conectar
       // listItems en el mismo statement), así que con lista se crea una por una
       // dentro de una transacción — más lento que createMany, pero acotado a
-      // las 2000 filas máximas del import y necesario para asociar la lista.
+      // las 5000 filas máximas del import y necesario para asociar la lista.
+      // Timeout explícito: con miles de creates individuales, el default de
+      // Prisma (5s) se queda corto y la transacción fallaría a mitad de camino.
       const created = await prisma.$transaction(
-        toCreate.map((data) => prisma.client.create({ data: { ...data, listItems: { create: [{ listId }] } } }))
+        toCreate.map((data) => prisma.client.create({ data: { ...data, listItems: { create: [{ listId }] } } })),
+        { timeout: 120000 }
       );
       results.created = created.length;
     } else {

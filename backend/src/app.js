@@ -40,7 +40,9 @@ app.use(cors({
 }));
 // Se guardan los bytes crudos del body para poder verificar la firma HMAC
 // de webhooks externos (RECOGIDA-PAQ) antes de que Express los reserialice.
-app.use(express.json({ limit: '5mb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
+// 10mb: da margen para el import masivo de contactos (hasta 5000 filas por
+// request) sin afectar la subida de adjuntos, que tiene su propio límite (multer).
+app.use(express.json({ limit: '10mb', verify: (req, _res, buf) => { req.rawBody = buf; } }));
 app.use(morgan('dev'));
 
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000 });
