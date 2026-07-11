@@ -75,7 +75,7 @@ async function findDuplicates(phone, phoneAlt, excludeId) {
 }
 
 async function listClients(req, res) {
-  const { search, statusId, assignedAgentId, companyId, projectId, tag, page = '1', pageSize = '25' } = req.query;
+  const { search, statusId, assignedAgentId, companyId, projectId, tag, listId, page = '1', pageSize = '25' } = req.query;
   const where = { ...(await clientScopeFilter(req.user)) };
 
   if (search) {
@@ -91,6 +91,7 @@ async function listClients(req, res) {
   if (companyId) where.companyId = companyId;
   if (projectId) where.projectId = projectId;
   if (tag) where.tags = { has: tag };
+  if (listId) where.listItems = { some: { listId } };
 
   const take = Math.min(parseInt(pageSize, 10) || 25, 100);
   const skip = (Math.max(parseInt(page, 10) || 1, 1) - 1) * take;
@@ -102,6 +103,7 @@ async function listClients(req, res) {
         status: true,
         assignedAgent: { select: { id: true, fullName: true } },
         company: { select: { id: true, name: true } },
+        listItems: { include: { list: { select: { id: true, name: true } } } },
         interactions: {
           orderBy: { createdAt: 'desc' },
           take: 1,
@@ -127,6 +129,7 @@ async function getClient(req, res) {
       assignedAgent: { select: { id: true, fullName: true } },
       company: true,
       project: { select: { id: true, name: true } },
+      listItems: { include: { list: { select: { id: true, name: true } } } },
       interactions: {
         include: { user: { select: { id: true, fullName: true } }, resultStatus: true },
         orderBy: { createdAt: 'desc' },
@@ -139,7 +142,7 @@ async function getClient(req, res) {
 }
 
 async function createClient(req, res) {
-  const { fullName, phone, phoneAlt, email, address, statusId, assignedAgentId, companyId, projectId, source, tags, nextFollowUpAt, autoAssign } = req.body;
+  const { fullName, phone, phoneAlt, email, address, statusId, assignedAgentId, companyId, projectId, source, tags, nextFollowUpAt, autoAssign, listIds } = req.body;
   let finalStatusId = statusId;
   if (!finalStatusId) {
     const def = await prisma.status.findFirst({ where: { isDefault: true } });
@@ -175,8 +178,14 @@ async function createClient(req, res) {
         source,
         tags: tags ?? [],
         nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt) : undefined,
+        listItems: listIds?.length ? { create: listIds.map((listId) => ({ listId })) } : undefined,
       },
-      include: { status: true, assignedAgent: { select: { id: true, fullName: true } }, company: { select: { id: true, name: true } } },
+      include: {
+        status: true,
+        assignedAgent: { select: { id: true, fullName: true } },
+        company: { select: { id: true, name: true } },
+        listItems: { include: { list: { select: { id: true, name: true } } } },
+      },
     });
   });
 
@@ -188,7 +197,7 @@ async function updateClient(req, res) {
   const existing = await prisma.client.findFirst({ where: { id, ...(await clientScopeFilter(req.user)) } });
   if (!existing) return res.status(404).json({ error: 'Client not found' });
 
-  const { fullName, phone, phoneAlt, email, address, statusId, companyId, projectId, source, tags, nextFollowUpAt } = req.body;
+  const { fullName, phone, phoneAlt, email, address, statusId, companyId, projectId, source, tags, nextFollowUpAt, listIds } = req.body;
   const data = {};
   if (fullName !== undefined) data.fullName = fullName;
   if (phone !== undefined) {
@@ -210,6 +219,8 @@ async function updateClient(req, res) {
   if (source !== undefined) data.source = source;
   if (tags !== undefined) data.tags = tags;
   if (nextFollowUpAt !== undefined) data.nextFollowUpAt = nextFollowUpAt ? new Date(nextFollowUpAt) : null;
+  // Reemplaza el conjunto completo de listas del cliente (no es un merge/append).
+  if (listIds !== undefined) data.listItems = { deleteMany: {}, create: listIds.map((listId) => ({ listId })) };
 
   const auditEntries = [];
   if (statusId !== undefined && statusId !== existing.statusId) {
@@ -226,7 +237,12 @@ async function updateClient(req, res) {
     prisma.client.update({
       where: { id },
       data,
-      include: { status: true, assignedAgent: { select: { id: true, fullName: true } }, company: { select: { id: true, name: true } } },
+      include: {
+        status: true,
+        assignedAgent: { select: { id: true, fullName: true } },
+        company: { select: { id: true, name: true } },
+        listItems: { include: { list: { select: { id: true, name: true } } } },
+      },
     }),
     ...auditEntries.map((entry) => prisma.auditLog.create({ data: entry })),
   ]);
@@ -425,7 +441,12 @@ async function mergeClients(req, res) {
 }
 
 async function importClients(req, res) {
-  const { rows, duplicateAction = 'skip', autoAssign = false, projectId } = req.body;
+  const { rows, duplicateAction = 'skip', autoAssign = false, projectId, listId } = req.body;
+
+  if (listId) {
+    const list = await prisma.clientList.findFirst({ where: { id: listId, projectId } });
+    if (!list) return res.status(400).json({ error: 'La lista indicada no existe en esta empresa' });
+  }
 
   // Para repartir filas sin agente cuando se pide auto-asignación: se parte de
   // la carga actual y se va incrementando en memoria para que el lote quede parejo.
@@ -501,8 +522,19 @@ async function importClients(req, res) {
   });
 
   if (toCreate.length > 0) {
-    const created = await prisma.client.createMany({ data: toCreate });
-    results.created = created.count;
+    if (listId) {
+      // createMany no admite relaciones anidadas (no hay forma de conectar
+      // listItems en el mismo statement), así que con lista se crea una por una
+      // dentro de una transacción — más lento que createMany, pero acotado a
+      // las 2000 filas máximas del import y necesario para asociar la lista.
+      const created = await prisma.$transaction(
+        toCreate.map((data) => prisma.client.create({ data: { ...data, listItems: { create: [{ listId }] } } }))
+      );
+      results.created = created.length;
+    } else {
+      const created = await prisma.client.createMany({ data: toCreate });
+      results.created = created.count;
+    }
   }
 
   res.status(201).json(results);

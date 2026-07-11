@@ -127,6 +127,7 @@ model Client {
   auditLogs    AuditLog[]
   deals        Deal[]
   attachments  Attachment[]
+  listItems    ClientListItem[]
 
   @@index([statusId])
   @@index([assignedAgentId])
@@ -138,6 +139,37 @@ model Client {
   @@index([lastContactedAt])
   @@index([projectId])
   @@map("clients")
+}
+
+// Listas de clientes dentro de una empresa (ej. "Tibios", "Zona Norte",
+// "Importación enero") — a diferencia de `tags` (texto libre por cliente sin
+// gestión centralizada), estas son entidades propias de la empresa: se pueden
+// crear al importar un lote, renombrar, ver cuántos clientes tiene cada una,
+// y un cliente puede estar en varias a la vez.
+model ClientList {
+  id        String   @id @default(uuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name      String
+  createdAt DateTime @default(now())
+
+  items ClientListItem[]
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@map("client_lists")
+}
+
+model ClientListItem {
+  clientId String
+  client   Client     @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  listId   String
+  list     ClientList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  addedAt  DateTime   @default(now())
+
+  @@id([clientId, listId])
+  @@index([listId])
+  @@map("client_list_items")
 }
 
 model SavedFilter {
@@ -307,6 +339,7 @@ model Project {
   tasks    ProjectTask[]
   clients  Client[]
   apiKeys  ApiKey[]
+  lists    ClientList[]
 
   @@index([name])
   @@map("projects")

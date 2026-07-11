@@ -16,6 +16,7 @@ import { useAuth } from '../context/AuthContext';
 const TABS = [
   { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { key: 'clients', label: 'Clientes', icon: 'clients' },
+  { key: 'lists', label: 'Listas', icon: 'folder' },
   { key: 'agenda', label: 'Agenda', icon: 'calendar' },
   { key: 'tasks', label: 'Tareas', icon: 'tasks' },
 ];
@@ -73,6 +74,7 @@ function ClientsTable({ clients, statuses, agents, canManageAgents, onStatusChan
           <thead className="bg-slate-50">
             <tr>
               <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nombre</th>
+              <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Listas</th>
               <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Contacto</th>
               <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Estatus</th>
               <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Agente</th>
@@ -91,6 +93,17 @@ function ClientsTable({ clients, statuses, agents, canManageAgents, onStatusChan
                       <Avatar name={c.fullName} className="h-9 w-9 shrink-0 text-xs" />
                       <div className="font-semibold text-slate-900 hover:text-orange-600">{c.fullName}</div>
                     </Link>
+                  </td>
+                  <td className="px-5 py-3">
+                    {c.listItems?.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {c.listItems.map((li) => (
+                          <span key={li.listId} className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                            {li.list.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : <span className="text-slate-300">—</span>}
                   </td>
                   <td className="whitespace-nowrap px-5 py-3">
                     <div className="flex items-center gap-1.5 text-slate-600">
@@ -166,7 +179,7 @@ function ClientsTable({ clients, statuses, agents, canManageAgents, onStatusChan
             })}
             {clients.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-5 py-12 text-center">
+                <td colSpan={8} className="px-5 py-12 text-center">
                   <Icon name="clients" className="mx-auto h-8 w-8 text-slate-300" strokeWidth={1.5} />
                   <p className="mt-2 text-sm text-slate-400">No hay contactos que coincidan.</p>
                 </td>
@@ -186,6 +199,8 @@ function ClientsTab({ projectId }) {
   const [statuses, setStatuses] = useState([]);
   const [agents, setAgents] = useState([]);
   const [clients, setClients] = useState([]);
+  const [lists, setLists] = useState([]);
+  const [listFilter, setListFilter] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [showNewModal, setShowNewModal] = useState(false);
@@ -194,10 +209,14 @@ function ClientsTab({ projectId }) {
 
   const fetchClients = useCallback(() => {
     setLoading(true);
-    return api.get('/clients', { params: { projectId, search: search || undefined, pageSize: 200 } })
+    return api.get('/clients', { params: { projectId, search: search || undefined, listId: listFilter || undefined, pageSize: 200 } })
       .then((res) => setClients(res.data.items))
       .finally(() => setLoading(false));
-  }, [projectId, search]);
+  }, [projectId, search, listFilter]);
+
+  const fetchLists = useCallback(() => {
+    return api.get(`/projects/${projectId}/lists`).then((res) => setLists(res.data)).catch(() => {});
+  }, [projectId]);
 
   useEffect(() => {
     api.get('/statuses').then((res) => setStatuses(res.data));
@@ -205,6 +224,7 @@ function ClientsTab({ projectId }) {
       api.get('/users').then((res) => setAgents(res.data.filter((u) => u.active))).catch(() => {});
     }
   }, [canManageAgents]);
+  useEffect(() => { fetchLists(); }, [fetchLists]);
   useEffect(() => { fetchClients(); }, [fetchClients]);
 
   async function handleDropClient(clientId, newStatusId) {
@@ -250,14 +270,24 @@ function ClientsTab({ projectId }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="relative">
-          <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar en esta empresa..."
-            className="w-64 rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-          />
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar en esta empresa..."
+              className="w-64 rounded-lg border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+            />
+          </div>
+          <select
+            value={listFilter}
+            onChange={(e) => setListFilter(e.target.value)}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-orange-500 focus:outline-none"
+          >
+            <option value="">Todas las listas</option>
+            {lists.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.clientCount})</option>)}
+          </select>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-slate-300 bg-white p-0.5 text-sm shadow-sm">
@@ -321,7 +351,7 @@ function ClientsTab({ projectId }) {
         <ImportClientsModal
           lockedProjectId={projectId}
           onClose={() => setShowImportModal(false)}
-          onImported={() => fetchClients()}
+          onImported={() => { fetchClients(); fetchLists(); }}
         />
       )}
       {noteClient && (
@@ -331,6 +361,128 @@ function ClientsTab({ projectId }) {
           onSaved={() => { setNoteClient(null); fetchClients(); }}
         />
       )}
+    </div>
+  );
+}
+
+function ListsTab({ projectId }) {
+  const [lists, setLists] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameValue, setRenameValue] = useState('');
+
+  const fetchLists = useCallback(() => {
+    setLoading(true);
+    return api.get(`/projects/${projectId}/lists`).then((res) => setLists(res.data)).finally(() => setLoading(false));
+  }, [projectId]);
+
+  useEffect(() => { fetchLists(); }, [fetchLists]);
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    setError('');
+    setSaving(true);
+    try {
+      await api.post(`/projects/${projectId}/lists`, { name });
+      setName('');
+      fetchLists();
+    } catch (err) {
+      setError(err.response?.data?.error || 'No se pudo crear la lista.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function startRename(list) {
+    setRenamingId(list.id);
+    setRenameValue(list.name);
+  }
+
+  async function handleRename(list) {
+    if (!renameValue.trim() || renameValue === list.name) { setRenamingId(null); return; }
+    try {
+      await api.patch(`/projects/${projectId}/lists/${list.id}`, { name: renameValue.trim() });
+      setRenamingId(null);
+      fetchLists();
+    } catch (err) {
+      window.alert(err.response?.data?.error || 'No se pudo renombrar la lista.');
+    }
+  }
+
+  async function handleDelete(list) {
+    if (!window.confirm(`¿Eliminar la lista "${list.name}"? Los clientes no se eliminan, solo dejan de estar en esta lista.`)) return;
+    await api.delete(`/projects/${projectId}/lists/${list.id}`);
+    fetchLists();
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-slate-900">Nueva lista</h2>
+        <p className="mb-3 text-xs text-slate-500">
+          Agrupá clientes de esta empresa (ej. "Tibios", "Zona Norte", "Importación enero"). Un cliente puede estar en varias listas a la vez.
+        </p>
+        {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
+        <form onSubmit={handleCreate} className="flex items-end gap-3">
+          <div className="min-w-56 flex-1">
+            <input required value={name} onChange={(e) => setName(e.target.value)}
+              placeholder="Nombre de la lista" className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm" />
+          </div>
+          <button type="submit" disabled={saving}
+            className="rounded-md bg-orange-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-orange-700 disabled:opacity-50">
+            {saving ? 'Creando...' : 'Crear lista'}
+          </button>
+        </form>
+      </div>
+
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <table className="min-w-full divide-y divide-slate-200 text-sm">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="px-4 py-2 text-left font-medium text-slate-500">Nombre</th>
+              <th className="px-4 py-2 text-left font-medium text-slate-500">Clientes</th>
+              <th className="px-4 py-2" />
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {loading ? (
+              <tr><td colSpan={3} className="px-4 py-6 text-center text-slate-400">Cargando...</td></tr>
+            ) : lists.map((l) => (
+              <tr key={l.id}>
+                <td className="px-4 py-2 font-medium text-slate-900">
+                  {renamingId === l.id ? (
+                    <input
+                      autoFocus
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onBlur={() => handleRename(l)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleRename(l); if (e.key === 'Escape') setRenamingId(null); }}
+                      className="rounded-md border border-orange-400 px-2 py-1 text-sm focus:outline-none"
+                    />
+                  ) : l.name}
+                </td>
+                <td className="px-4 py-2 text-slate-600">{l.clientCount}</td>
+                <td className="px-4 py-2 text-right">
+                  <div className="flex justify-end gap-3">
+                    <button onClick={() => startRename(l)} className="text-xs font-medium text-slate-600 hover:underline">
+                      Renombrar
+                    </button>
+                    <button onClick={() => handleDelete(l)} className="text-xs font-medium text-red-600 hover:underline">
+                      Eliminar
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {!loading && lists.length === 0 && (
+              <tr><td colSpan={3} className="px-4 py-6 text-center text-slate-400">Sin listas creadas.</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -593,6 +745,7 @@ export default function ProjectDetailPage() {
         />
       )}
       {tab === 'clients' && <ClientsTab projectId={id} />}
+      {tab === 'lists' && <ListsTab projectId={id} />}
       {tab === 'agenda' && <AgendaTab projectId={id} />}
       {tab === 'dashboard' && <DashboardTab projectId={id} />}
 

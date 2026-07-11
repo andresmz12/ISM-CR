@@ -27,6 +27,7 @@ const createSchema = z.object({
   tags: z.array(z.string()).optional(),
   nextFollowUpAt: z.string().datetime().optional(),
   autoAssign: z.boolean().optional(),
+  listIds: z.array(z.string().uuid()).optional(),
 });
 
 const updateSchema = createSchema.omit({ autoAssign: true }).partial();
@@ -39,6 +40,7 @@ const importSchema = z.object({
   duplicateAction: z.enum(['skip', 'create']).optional(),
   autoAssign: z.boolean().optional(),
   projectId: z.string().uuid().optional(),
+  listId: z.string().uuid().optional(),
   rows: z.array(z.object({
     fullName: z.string(),
     phone: z.union([z.string(), z.number()]).transform(String),

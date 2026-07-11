@@ -7,6 +7,7 @@ const { requireAuth, requireRole, requireProjectAccess } = require('../middlewar
 const { validate } = require('../utils/validate');
 const projectSectionRoutes = require('./projectSectionRoutes');
 const projectTaskRoutes = require('./projectTaskRoutes');
+const clientListRoutes = require('./clientListRoutes');
 
 const router = express.Router();
 
@@ -102,5 +103,6 @@ router.delete('/:projectId/members/:userId', requireRole('ADMIN', 'SUPERVISOR'),
 
 router.use('/:projectId/sections', requireProjectAccess, projectSectionRoutes);
 router.use('/:projectId/tasks', requireProjectAccess, projectTaskRoutes);
+router.use('/:projectId/lists', requireProjectAccess, clientListRoutes);
 
 module.exports = router;

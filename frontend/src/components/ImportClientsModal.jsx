@@ -1,6 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../api/client';
 import Icon from './Icon';
+
+const NEW_LIST_VALUE = '__new__';
 
 const FIELDS = [
   { key: 'fullName', label: 'Nombre completo', required: true, hints: ['nombre', 'name', 'cliente', 'full name', 'fullname'] },
@@ -36,10 +38,25 @@ export default function ImportClientsModal({ projects = [], lockedProjectId, onC
   const [duplicateAction, setDuplicateAction] = useState('skip');
   const [autoAssign, setAutoAssign] = useState(false);
   const [projectId, setProjectId] = useState('');
+  const [lists, setLists] = useState([]);
+  const [listId, setListId] = useState('');
+  const [newListName, setNewListName] = useState('');
   const [error, setError] = useState('');
   const [importing, setImporting] = useState(false);
   const [result, setResult] = useState(null);
   const inputRef = useRef(null);
+
+  // La lista solo tiene sentido una vez que se sabe a qué empresa va el lote
+  // (lockedProjectId si se abre desde dentro de una Empresa, o el que elija
+  // el usuario si el modal se abre desde la vista global de Clientes).
+  const effectiveProjectId = lockedProjectId || projectId;
+
+  useEffect(() => {
+    setListId('');
+    setNewListName('');
+    if (!effectiveProjectId) { setLists([]); return; }
+    api.get(`/projects/${effectiveProjectId}/lists`).then((res) => setLists(res.data)).catch(() => setLists([]));
+  }, [effectiveProjectId]);
 
   // Convierte una hoja de exceljs a un array de arrays de strings (misma forma
   // que se usaba con xlsx: header:1 + defval:'').
@@ -128,6 +145,13 @@ export default function ImportClientsModal({ projects = [], lockedProjectId, onC
     setImporting(true);
     setError('');
     try {
+      let finalListId = listId;
+      if (listId === NEW_LIST_VALUE) {
+        if (!newListName.trim()) throw new Error('Ponele un nombre a la lista nueva.');
+        const res = await api.post(`/projects/${effectiveProjectId}/lists`, { name: newListName.trim() });
+        finalListId = res.data.id;
+      }
+
       const payload = rows.map((r) => {
         const get = (key) => {
           const idx = mapping[key];
@@ -145,12 +169,18 @@ export default function ImportClientsModal({ projects = [], lockedProjectId, onC
           tags: get('tags') ? get('tags').split(/[,;]/).map((t) => t.trim()).filter(Boolean) : undefined,
         };
       }).filter((r) => r.fullName || r.phone);
-      const res = await api.post('/clients/import', { rows: payload, duplicateAction, autoAssign, projectId: lockedProjectId || projectId || undefined });
+      const res = await api.post('/clients/import', {
+        rows: payload,
+        duplicateAction,
+        autoAssign,
+        projectId: effectiveProjectId || undefined,
+        listId: finalListId || undefined,
+      });
       setResult(res.data);
       setStep('done');
       onImported();
     } catch (err) {
-      setError(err.response?.data?.error || 'La importación falló. Revisa el archivo e intenta de nuevo.');
+      setError(err.response?.data?.error || err.message || 'La importación falló. Revisa el archivo e intenta de nuevo.');
     } finally {
       setImporting(false);
     }
@@ -292,6 +322,35 @@ export default function ImportClientsModal({ projects = [], lockedProjectId, onC
                     {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                   <p className="mt-1 text-xs text-slate-500">Se asigna a todos los contactos que se creen en esta importación.</p>
+                </div>
+              )}
+
+              {effectiveProjectId && (
+                <div>
+                  <h3 className="mb-2 text-sm font-semibold text-slate-800">6. Lista (opcional)</h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={listId}
+                      onChange={(e) => setListId(e.target.value)}
+                      className="w-full max-w-xs rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm focus:border-orange-500 focus:outline-none"
+                    >
+                      <option value="">Sin lista</option>
+                      {lists.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.clientCount})</option>)}
+                      <option value={NEW_LIST_VALUE}>+ Crear lista nueva...</option>
+                    </select>
+                    {listId === NEW_LIST_VALUE && (
+                      <input
+                        autoFocus
+                        value={newListName}
+                        onChange={(e) => setNewListName(e.target.value)}
+                        placeholder="Nombre de la lista nueva"
+                        className="w-full max-w-xs rounded-lg border border-orange-300 px-2.5 py-1.5 text-sm focus:border-orange-500 focus:outline-none"
+                      />
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-slate-500">
+                    Agrupa a todos los contactos de este lote (ej. "Tibios", "Zona Norte"). Un contacto puede estar en varias listas.
+                  </p>
                 </div>
               )}
 
