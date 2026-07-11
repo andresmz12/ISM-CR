@@ -147,14 +147,20 @@ function ClientsTable({ clients, statuses, agents, canManageAgents, onStatusChan
                     ) : <span className="text-slate-300">—</span>}
                   </td>
                   <td className="max-w-[260px] px-5 py-3">
-                    {lastNote ? (
-                      <div title={lastNote.notes}>
-                        <p className="truncate text-slate-700">{lastNote.notes}</p>
-                        <p className="text-xs text-slate-400">
-                          {lastNote.user?.fullName} · {new Date(lastNote.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                    ) : <span className="text-slate-300">Sin notas</span>}
+                    <button
+                      onClick={() => onAddNote(c)}
+                      title={lastNote ? `${lastNote.notes}\n\nClic para agregar otra nota` : 'Clic para agregar una nota'}
+                      className="block w-full rounded-md px-1.5 py-1 text-left transition hover:bg-orange-50"
+                    >
+                      {lastNote ? (
+                        <div>
+                          <p className="truncate text-slate-700">{lastNote.notes}</p>
+                          <p className="text-xs text-slate-400">
+                            {lastNote.user?.fullName} · {new Date(lastNote.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      ) : <span className="text-slate-300 hover:text-orange-600">+ Agregar nota</span>}
+                    </button>
                   </td>
                   <td className="px-5 py-3">
                     <div className="flex items-center justify-end gap-1">

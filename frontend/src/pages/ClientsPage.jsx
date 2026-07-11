@@ -505,14 +505,20 @@ export default function ClientsPage() {
                             )}
                             {visibleCols.nota && (
                               <td className="max-w-[260px] border-b border-slate-100 px-5 py-3.5">
-                                {lastNote ? (
-                                  <div title={lastNote.notes}>
-                                    <p className="truncate text-slate-700">{lastNote.notes}</p>
-                                    <p className="text-xs text-slate-400">
-                                      {lastNote.user?.fullName} · {new Date(lastNote.createdAt).toLocaleDateString()}
-                                    </p>
-                                  </div>
-                                ) : <span className="text-slate-300">Sin notas</span>}
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setNoteClient(c); }}
+                                  title={lastNote ? `${lastNote.notes}\n\nClic para agregar otra nota` : 'Clic para agregar una nota'}
+                                  className="block w-full rounded-md px-1.5 py-1 text-left transition hover:bg-orange-50"
+                                >
+                                  {lastNote ? (
+                                    <div>
+                                      <p className="truncate text-slate-700">{lastNote.notes}</p>
+                                      <p className="text-xs text-slate-400">
+                                        {lastNote.user?.fullName} · {new Date(lastNote.createdAt).toLocaleDateString()}
+                                      </p>
+                                    </div>
+                                  ) : <span className="text-slate-300 hover:text-orange-600">+ Agregar nota</span>}
+                                </button>
                               </td>
                             )}
                             {visibleCols.empresa && (
