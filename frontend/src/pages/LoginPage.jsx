@@ -46,7 +46,7 @@ export default function LoginPage() {
             Seguimiento comercial, historial de interacciones y tareas del día para todo el equipo.
           </p>
           <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-zinc-400">
-            <div className="flex items-center gap-2"><Icon name="clients" className="h-4 w-4 text-orange-400" /> Pipeline visual</div>
+            <div className="flex items-center gap-2"><Icon name="clients" className="h-4 w-4 text-orange-400" /> Seguimiento por contactos</div>
             <div className="flex items-center gap-2"><Icon name="activity" className="h-4 w-4 text-orange-400" /> Actividad en tiempo real</div>
             <div className="flex items-center gap-2"><Icon name="upload" className="h-4 w-4 text-orange-400" /> Importación desde Excel</div>
           </div>
