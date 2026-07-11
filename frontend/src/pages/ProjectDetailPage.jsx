@@ -423,7 +423,7 @@ function ListsTab({ projectId }) {
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h2 className="mb-1 text-sm font-semibold text-slate-900">Nueva lista</h2>
         <p className="mb-3 text-xs text-slate-500">
-          Agrupá clientes de esta empresa (ej. "Tibios", "Zona Norte", "Importación enero"). Un cliente puede estar en varias listas a la vez.
+          Agrupá clientes de esta empresa. Un cliente puede estar en varias listas a la vez.
         </p>
         {error && <div className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
         <form onSubmit={handleCreate} className="flex items-end gap-3">
