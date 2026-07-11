@@ -1,14 +1,18 @@
 import { useEffect, useState } from 'react';
 import api from '../api/client';
+import { useAuth } from '../context/AuthContext';
+import EditUserModal from '../components/EditUserModal';
 
 const ROLES = ['ADMIN', 'SUPERVISOR', 'AGENT'];
 
 export default function AdminUsersPage() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ fullName: '', email: '', password: '', role: 'AGENT' });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
 
   function fetchUsers() {
     setLoading(true);
@@ -40,6 +44,16 @@ export default function AdminUsersPage() {
   async function changeRole(user, role) {
     await api.patch(`/users/${user.id}`, { role });
     fetchUsers();
+  }
+
+  async function handleDelete(user) {
+    if (!window.confirm(`¿Eliminar a "${user.fullName}"? Esta acción no se puede deshacer.`)) return;
+    try {
+      await api.delete(`/users/${user.id}`);
+      fetchUsers();
+    } catch (err) {
+      window.alert(err.response?.data?.error || 'No se pudo eliminar el usuario.');
+    }
   }
 
   return (
@@ -112,15 +126,33 @@ export default function AdminUsersPage() {
                   </span>
                 </td>
                 <td className="px-4 py-2 text-right">
-                  <button onClick={() => toggleActive(u)} className="text-xs font-medium text-orange-600 hover:underline">
-                    {u.active ? 'Desactivar' : 'Activar'}
-                  </button>
+                  <div className="flex justify-end gap-3">
+                    <button onClick={() => setEditingUser(u)} className="text-xs font-medium text-slate-600 hover:underline">
+                      Editar
+                    </button>
+                    <button onClick={() => toggleActive(u)} className="text-xs font-medium text-orange-600 hover:underline">
+                      {u.active ? 'Desactivar' : 'Activar'}
+                    </button>
+                    {u.id !== currentUser?.id && (
+                      <button onClick={() => handleDelete(u)} className="text-xs font-medium text-red-600 hover:underline">
+                        Eliminar
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {editingUser && (
+        <EditUserModal
+          user={editingUser}
+          onClose={() => setEditingUser(null)}
+          onSaved={() => { setEditingUser(null); fetchUsers(); }}
+        />
+      )}
     </div>
   );
 }

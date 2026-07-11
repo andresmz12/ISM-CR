@@ -1,6 +1,6 @@
 const express = require('express');
 const { z } = require('zod');
-const { listUsers, createUser, updateUser } = require('../controllers/userController');
+const { listUsers, createUser, updateUser, deleteUser } = require('../controllers/userController');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { validate } = require('../utils/validate');
 
@@ -52,5 +52,18 @@ router.post('/', requireRole('ADMIN'), validate(createSchema), createUser);
  *       200: { description: User updated }
  */
 router.patch('/:id', requireRole('ADMIN'), validate(updateSchema), updateUser);
+
+/**
+ * @openapi
+ * /users/{id}:
+ *   delete:
+ *     summary: Delete a user (Admin only)
+ *     tags: [Users]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       204: { description: User deleted }
+ *       409: { description: User has related records (interactions, deals, etc.) and can't be deleted }
+ */
+router.delete('/:id', requireRole('ADMIN'), deleteUser);
 
 module.exports = router;

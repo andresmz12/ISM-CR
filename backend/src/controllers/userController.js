@@ -58,4 +58,27 @@ async function updateUser(req, res) {
   res.json(user);
 }
 
-module.exports = wrapAll({ listUsers, createUser, updateUser });
+async function deleteUser(req, res) {
+  const { id } = req.params;
+  if (id === req.user.sub) {
+    return res.status(400).json({ error: 'No puedes eliminar tu propia cuenta' });
+  }
+
+  const target = await prisma.user.findUnique({ where: { id } });
+  if (!target) return res.status(404).json({ error: 'User not found' });
+
+  // Igual que al desactivar: no dejar el sistema sin ningún administrador activo.
+  if (target.role === 'ADMIN' && target.active) {
+    const otherAdmins = await prisma.user.count({
+      where: { role: 'ADMIN', active: true, id: { not: id } },
+    });
+    if (otherAdmins === 0) {
+      return res.status(400).json({ error: 'Debe quedar al menos un administrador activo' });
+    }
+  }
+
+  await prisma.user.delete({ where: { id } });
+  res.status(204).send();
+}
+
+module.exports = wrapAll({ listUsers, createUser, updateUser, deleteUser });
