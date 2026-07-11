@@ -7,13 +7,25 @@ const { handleEmailSent } = require('../controllers/emailController');
 const router = express.Router();
 
 const emailWebhookSchema = z.object({
-  email: z.string().email(),
+  // Identifica el envío en sí (determinístico entre reintentos de ZyraVoice):
+  // es la clave de dedupe contra WebhookEvent.
+  delivery_id: z.union([z.string(), z.number()]).transform(String),
+  // organization_id/organization.id son el identificador de ZyraVoice, no
+  // nuestro projectId interno — el controller resuelve el Project mapeado
+  // (Project.zyraOrganizationId) antes de matchear el cliente, para no mezclar
+  // clientes de otra empresa que use la misma integración de ZyraVoice.
+  organization_id: z.union([z.string(), z.number()]).transform(String),
+  organization: z.object({ id: z.union([z.string(), z.number()]), name: z.string().optional() }).optional(),
+  campaign: z.object({ id: z.union([z.string(), z.number()]).optional(), name: z.string().optional() }).optional(),
+  template_key: z.string().optional(),
   subject: z.string().min(1),
+  email: z.string().email(),
   sent_at: z.string().min(1),
-  // Nuestro projectId interno (no un ID de ZyraVoice): identifica de qué empresa/
-  // proyecto es la campaña, para no matchear el email contra clientes de otro
-  // proyecto que use la misma integración de ZyraVoice.
-  projectId: z.string().uuid(),
+  prospect: z.object({
+    id: z.union([z.string(), z.number()]).optional(),
+    name: z.string().optional(),
+    company: z.string().optional(),
+  }).optional(),
 });
 
 /**
@@ -24,7 +36,7 @@ const emailWebhookSchema = z.object({
  *     tags: [Integrations]
  *     security: [{ zyraWebhookSignature: [] }]
  *     responses:
- *       200: { description: Interacción registrada, o "skipped" si no hay cliente con ese email en el proyecto }
+ *       200: { description: Interacción registrada, o "skipped" si organization_id no está mapeado a un Project o no hay cliente con ese email en el proyecto }
  *       401: { description: Firma inválida }
  */
 router.post(

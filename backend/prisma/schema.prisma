@@ -289,13 +289,18 @@ model Deal {
 }
 
 model Project {
-  id          String   @id @default(uuid())
-  name        String
-  description String?
-  repoUrl     String?
-  archived    Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  name               String
+  description        String?
+  repoUrl            String?
+  archived           Boolean  @default(false)
+  // organization_id que manda ZyraVoice en sus webhooks (calls, emails). Permite
+  // que una sola integración de ZyraVoice sirva a varias empresas/proyectos sin
+  // mezclarlas: /integrations/emails busca el Project por este campo antes de
+  // matchear el cliente. Null = este proyecto no recibe webhooks de ZyraVoice.
+  zyraOrganizationId String?  @unique
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   members  ProjectMember[]
   sections ProjectSection[]

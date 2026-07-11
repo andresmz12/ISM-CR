@@ -12,22 +12,26 @@ async function findSystemUser() {
     ?? (await prisma.user.findFirst({ where: { role: 'ADMIN' } }));
 }
 
-// ZyraVoice manda un evento por destinatario de la campaña. Si el email no
-// coincide con ningún cliente del CRM (dentro del proyecto indicado), no se
-// crea nada — se asume que el destinatario no es un cliente del CRM, no un
-// error — pero queda anotado en el log para poder auditar coincidencias faltantes.
+// ZyraVoice manda un evento por destinatario de la campaña. Si organization_id
+// no está mapeado a ningún Project, o el email no coincide con ningún cliente
+// del CRM dentro de ese proyecto, no se crea nada — nunca se falla la
+// petición — pero queda anotado en el log para poder auditar el hueco.
 async function handleEmailSent(req, res) {
-  const { email, subject, sent_at: sentAt, projectId } = req.body;
-  const emailNormalized = normalizeEmailOrNull(email);
+  const { delivery_id: deliveryId, organization_id: organizationId, subject, email, sent_at: sentAt } = req.body;
 
+  const project = await prisma.project.findUnique({ where: { zyraOrganizationId: organizationId } });
+  if (!project) {
+    console.log(`[emails] organization_id=${organizationId} no está mapeado a ningún Project (configúralo en Project.zyraOrganizationId)`);
+    return res.json({ existing: false, clientId: null, skipped: true });
+  }
+
+  const emailNormalized = normalizeEmailOrNull(email);
   const existingClient = emailNormalized
-    ? await prisma.client.findFirst({ where: { emailNormalized, projectId } })
+    ? await prisma.client.findFirst({ where: { emailNormalized, projectId: project.id } })
     : null;
 
   if (!existingClient) {
-    // Nada que persistir: no hace falta dedupe, un reintento vuelve a calcular
-    // exactamente la misma respuesta sin efectos secundarios.
-    console.log(`[emails] Sin coincidencia para email=${emailNormalized ?? '(vacío)'} en projectId=${projectId}`);
+    console.log(`[emails] Sin coincidencia para email=${emailNormalized ?? '(vacío)'} en projectId=${project.id} (organization_id=${organizationId})`);
     return res.json({ existing: false, clientId: null, skipped: true });
   }
 
@@ -36,16 +40,15 @@ async function handleEmailSent(req, res) {
     return res.status(500).json({ error: 'No hay usuario Sistema/Admin configurado para atribuir la interacción' });
   }
 
-  // No hay un id de mensaje propio en el payload (email+subject+sent_at), así que
-  // esa combinación es la clave de dedupe. El registro va en la MISMA transacción
-  // que la interacción: si ya se procesó, el create de webhookEvent lanza P2002 y
-  // revierte todo (nada se duplica); si algo más falla, el rollback también
-  // deshace el registro, así un reintento real de ZyraVoice no queda bloqueado
-  // como si ya se hubiera procesado cuando en realidad nunca se completó.
-  const dedupeKey = `${projectId}:${emailNormalized}:${subject}:${sentAt}`;
+  // El registro de dedupe (por delivery_id, determinístico entre reintentos de
+  // ZyraVoice) va en la MISMA transacción que la interacción: si ya se procesó,
+  // el create de webhookEvent lanza P2002 y revierte todo (nada se duplica); si
+  // algo más falla, el rollback también deshace el registro, así un reintento
+  // real de ZyraVoice no queda bloqueado como si ya se hubiera procesado cuando
+  // en realidad nunca se completó.
   try {
     await prisma.$transaction([
-      prisma.webhookEvent.create({ data: { source: 'zyravoice.email_sent', externalId: dedupeKey } }),
+      prisma.webhookEvent.create({ data: { source: 'zyravoice.email_sent', externalId: String(deliveryId) } }),
       prisma.interaction.create({
         data: {
           clientId: existingClient.id,

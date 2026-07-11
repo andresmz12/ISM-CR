@@ -24,6 +24,9 @@ const updateSchema = z.object({
   description: z.string().optional(),
   repoUrl: z.string().optional(),
   archived: z.boolean().optional(),
+  // organization_id que este proyecto recibe en los webhooks de ZyraVoice
+  // (/integrations/emails, y a futuro /calls). '' se guarda como null (desmapear).
+  zyraOrganizationId: z.string().optional(),
 });
 
 const memberSchema = z.object({ userId: z.string().uuid() });

@@ -419,13 +419,28 @@ export default function ProjectDetailPage() {
   const [tab, setTab] = useState('dashboard');
   const [taskModal, setTaskModal] = useState(null);
   const [showMembersModal, setShowMembersModal] = useState(false);
+  const [zyraOrgIdInput, setZyraOrgIdInput] = useState('');
+  const [savingZyraOrgId, setSavingZyraOrgId] = useState(false);
 
   const fetchProject = useCallback(() => {
     setLoading(true);
-    return api.get(`/projects/${id}`).then((res) => setProject(res.data)).finally(() => setLoading(false));
+    return api.get(`/projects/${id}`).then((res) => {
+      setProject(res.data);
+      setZyraOrgIdInput(res.data.zyraOrganizationId ?? '');
+    }).finally(() => setLoading(false));
   }, [id]);
 
   useEffect(() => { fetchProject(); }, [fetchProject]);
+
+  async function handleSaveZyraOrgId() {
+    setSavingZyraOrgId(true);
+    try {
+      await api.patch(`/projects/${id}`, { zyraOrganizationId: zyraOrgIdInput.trim() });
+      fetchProject();
+    } finally {
+      setSavingZyraOrgId(false);
+    }
+  }
 
   const sections = project?.sections.map(({ tasks: _tasks, ...s }) => s) ?? [];
   const tasks = project?.sections.flatMap((s) => s.tasks) ?? [];
@@ -498,8 +513,26 @@ export default function ProjectDetailPage() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">{project.name}</h1>
               {user.role === 'ADMIN' && (
-                <div className="mt-1.5">
+                <div className="mt-1.5 flex flex-wrap items-center gap-2">
                   <CopyableId id={project.id} label="ID del proyecto" />
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      value={zyraOrgIdInput}
+                      onChange={(e) => setZyraOrgIdInput(e.target.value)}
+                      placeholder="organization_id de ZyraVoice"
+                      title="Mapea el organization_id que ZyraVoice manda en sus webhooks a esta empresa, para que /integrations/emails no mezcle clientes entre empresas"
+                      className="w-48 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 font-mono text-[11px] text-slate-600 focus:border-orange-400 focus:outline-none"
+                    />
+                    {zyraOrgIdInput !== (project.zyraOrganizationId ?? '') && (
+                      <button
+                        onClick={handleSaveZyraOrgId}
+                        disabled={savingZyraOrgId}
+                        className="rounded-md bg-orange-600 px-2 py-1 text-[11px] font-medium text-white hover:bg-orange-700 disabled:opacity-50"
+                      >
+                        {savingZyraOrgId ? 'Guardando...' : 'Guardar'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
               {project.description && <p className="mt-2 text-sm text-slate-500">{project.description}</p>}

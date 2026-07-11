@@ -59,12 +59,13 @@ async function createProject(req, res) {
 
 async function updateProject(req, res) {
   const { projectId } = req.params;
-  const { name, description, repoUrl, archived } = req.body;
+  const { name, description, repoUrl, archived, zyraOrganizationId } = req.body;
   const data = {};
   if (name !== undefined) data.name = name;
   if (description !== undefined) data.description = description;
   if (repoUrl !== undefined) data.repoUrl = repoUrl;
   if (archived !== undefined) data.archived = archived;
+  if (zyraOrganizationId !== undefined) data.zyraOrganizationId = zyraOrganizationId || null;
   const project = await prisma.project.update({ where: { id: projectId }, data });
   res.json(project);
 }
