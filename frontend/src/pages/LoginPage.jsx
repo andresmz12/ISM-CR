@@ -8,6 +8,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -27,8 +28,8 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen">
-      {/* Panel de marca */}
-      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-zinc-950 p-12 lg:flex">
+      {/* Panel de marca — visible desde tablet en adelante */}
+      <div className="relative hidden w-1/2 flex-col justify-between overflow-hidden bg-zinc-950 p-12 md:flex">
         <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-orange-600/20 blur-3xl" />
         <div className="absolute -bottom-40 -right-24 h-96 w-96 rounded-full bg-amber-500/10 blur-3xl" />
         <div className="relative flex items-center gap-3">
@@ -44,7 +45,7 @@ export default function LoginPage() {
           <p className="mt-4 max-w-md text-zinc-400">
             Seguimiento comercial, historial de interacciones y tareas del día para todo el equipo.
           </p>
-          <div className="mt-8 flex gap-6 text-sm text-zinc-400">
+          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-zinc-400">
             <div className="flex items-center gap-2"><Icon name="clients" className="h-4 w-4 text-orange-400" /> Pipeline visual</div>
             <div className="flex items-center gap-2"><Icon name="activity" className="h-4 w-4 text-orange-400" /> Actividad en tiempo real</div>
             <div className="flex items-center gap-2"><Icon name="upload" className="h-4 w-4 text-orange-400" /> Importación desde Excel</div>
@@ -53,14 +54,19 @@ export default function LoginPage() {
         <div className="relative text-xs text-zinc-600">© {new Date().getFullYear()} ISM Consulting Services</div>
       </div>
 
-      {/* Formulario */}
-      <div className="flex flex-1 items-center justify-center bg-slate-50 p-6">
-        <form onSubmit={handleSubmit} className="w-full max-w-sm">
-          <div className="mb-8 lg:hidden">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-sm font-bold text-white">
+      {/* Formulario — con textura propia para que nunca se vea vacío, con o sin el panel de marca */}
+      <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-slate-50 p-6">
+        <div className="absolute -right-40 -top-40 h-96 w-96 rounded-full bg-orange-200/30 blur-3xl md:hidden" />
+        <div className="absolute -bottom-40 -left-24 h-96 w-96 rounded-full bg-amber-200/30 blur-3xl md:hidden" />
+
+        <form onSubmit={handleSubmit} className="relative w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-900/5">
+          <div className="mb-6 flex items-center gap-3 md:hidden">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-sm font-bold text-white shadow-md shadow-orange-500/30">
               ISM
             </span>
+            <span className="text-base font-semibold text-slate-900">ISM CRM</span>
           </div>
+
           <h2 className="text-2xl font-bold text-slate-900">Bienvenido de nuevo</h2>
           <p className="mb-8 mt-1 text-sm text-slate-500">Inicia sesión con tu cuenta del equipo</p>
 
@@ -71,34 +77,54 @@ export default function LoginPage() {
           )}
 
           <label className="mb-1.5 block text-sm font-medium text-slate-700">Correo electrónico</label>
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mb-4 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-            placeholder="tu@empresa.com"
-          />
+          <div className="relative mb-4">
+            <Icon name="mail" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-3.5 text-sm shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+              placeholder="tu@empresa.com"
+            />
+          </div>
 
           <label className="mb-1.5 block text-sm font-medium text-slate-700">Contraseña</label>
-          <input
-            type="password"
-            required
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mb-6 w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-            placeholder="••••••••"
-          />
+          <div className="relative mb-6">
+            <Icon name="lock" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <input
+              type={showPassword ? 'text' : 'password'}
+              required
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full rounded-lg border border-slate-300 bg-white py-2.5 pl-9 pr-10 text-sm shadow-sm transition focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+              placeholder="••••••••"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              tabIndex={-1}
+              aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <Icon name={showPassword ? 'eyeOff' : 'eye'} className="h-4 w-4" />
+            </button>
+          </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-orange-600/25 transition hover:bg-orange-700 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-orange-600/25 transition hover:bg-orange-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
+            {loading && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />}
             {loading ? 'Ingresando...' : 'Ingresar'}
           </button>
+
+          <p className="mt-6 text-center text-xs text-slate-400">
+            ¿Problemas para ingresar? Contacta a tu administrador.
+          </p>
         </form>
       </div>
     </div>
