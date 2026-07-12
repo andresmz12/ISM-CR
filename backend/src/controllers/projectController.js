@@ -70,6 +70,16 @@ async function updateProject(req, res) {
   res.json(project);
 }
 
+async function updateHiddenStatuses(req, res) {
+  const { projectId } = req.params;
+  const { hiddenStatusIds } = req.body;
+  const project = await prisma.project.update({
+    where: { id: projectId },
+    data: { hiddenStatusIds },
+  });
+  res.json({ hiddenStatusIds: project.hiddenStatusIds });
+}
+
 async function deleteProject(req, res) {
   const { projectId } = req.params;
   await prisma.project.delete({ where: { id: projectId } });
@@ -93,5 +103,5 @@ async function removeMember(req, res) {
 }
 
 module.exports = wrapAll({
-  listProjects, getProject, createProject, updateProject, deleteProject, addMember, removeMember,
+  listProjects, getProject, createProject, updateProject, updateHiddenStatuses, deleteProject, addMember, removeMember,
 });

@@ -1,39 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Icon from './Icon';
 
-// Los estatus son globales (compartidos entre todas las empresas), así que ocultar
-// uno de la vista es una preferencia de pantalla por navegador — nunca borra ni
-// desactiva el estatus, sigue disponible en el selector de Estatus de la tabla y en
-// Admin. Se comparte entre Tablero y Tabla para que ambas vistas muestren lo mismo.
-const STORAGE_KEY = 'ism-crm-kanban-hidden-statuses';
-
-function loadHiddenStatusIds() {
-  try {
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-    return new Set(Array.isArray(stored) ? stored : []);
-  } catch {
-    return new Set();
-  }
-}
-
-export function useHiddenStatusIds() {
-  const [hiddenStatusIds, setHiddenStatusIds] = useState(loadHiddenStatusIds);
-
-  useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...hiddenStatusIds]));
-  }, [hiddenStatusIds]);
-
-  function toggle(statusId) {
-    setHiddenStatusIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(statusId)) next.delete(statusId); else next.add(statusId);
-      return next;
-    });
-  }
-
-  return { hiddenStatusIds, toggle };
-}
-
+// Estatus ocultos del Tablero/Tabla de una empresa: preferencia guardada en el
+// proyecto (compartida por todo el equipo, sigue a cada usuario sin importar el
+// dispositivo), no borra ni desactiva el estatus — sigue disponible en Admin y en
+// el selector de Estatus de cada cliente. El estado vive en el componente padre
+// (ligado al proyecto); este componente solo dibuja el picker.
 export default function StatusVisibilityPicker({ statuses, hiddenStatusIds, onToggle }) {
   const [open, setOpen] = useState(false);
   return (
@@ -54,7 +26,7 @@ export default function StatusVisibilityPicker({ statuses, hiddenStatusIds, onTo
       {open && (
         <div className="absolute right-0 z-20 mt-2 w-60 overflow-hidden rounded-lg border border-slate-200 bg-white py-1.5 shadow-lg">
           <p className="px-3.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-            Estatus visibles (Tablero y Tabla)
+            Estatus visibles del equipo (Tablero y Tabla)
           </p>
           {statuses.map((s) => (
             <div

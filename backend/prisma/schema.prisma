@@ -331,6 +331,10 @@ model Project {
   // mezclarlas: /integrations/emails busca el Project por este campo antes de
   // matchear el cliente. Null = este proyecto no recibe webhooks de ZyraVoice.
   zyraOrganizationId String?  @unique
+  // Estatus ocultos del Tablero/Tabla de Clientes de este proyecto — preferencia
+  // compartida por todo el equipo (no borra ni desactiva el estatus, sigue
+  // disponible en Admin y en el selector de Estatus de cada cliente).
+  hiddenStatusIds    String[] @default([])
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 

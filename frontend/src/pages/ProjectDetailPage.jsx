@@ -11,7 +11,7 @@ import QuickNoteModal from '../components/QuickNoteModal';
 import StatusBadge, { colorForStatus } from '../components/StatusBadge';
 import CopyableId from '../components/CopyableId';
 import ColumnPicker, { useColumnPrefs } from '../components/ColumnPicker';
-import StatusVisibilityPicker, { useHiddenStatusIds } from '../components/StatusVisibilityPicker';
+import StatusVisibilityPicker from '../components/StatusVisibilityPicker';
 import Icon, { Avatar } from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 
@@ -283,7 +283,7 @@ function ClientsTable({ clients, statuses, agents, canManageAgents, visibleKeys,
   );
 }
 
-function ClientsTab({ projectId }) {
+function ClientsTab({ projectId, hiddenStatusIds, onToggleHiddenStatus }) {
   const { user } = useAuth();
   const canManageAgents = user.role !== 'AGENT';
   const [view, setView] = useState('kanban');
@@ -298,7 +298,6 @@ function ClientsTab({ projectId }) {
   const [showImportModal, setShowImportModal] = useState(false);
   const [noteClient, setNoteClient] = useState(null);
   const { order: columnOrder, visibleKeys, toggle: toggleColumn, move: moveColumn } = useColumnPrefs(CLIENT_COLUMN_STORAGE_KEY, CLIENT_COLUMN_DEFS);
-  const { hiddenStatusIds, toggle: toggleStatusVisible } = useHiddenStatusIds();
   // El filtro de Estatus aplica a Tablero y Tabla por igual: lo que se oculta en uno
   // desaparece del otro también, para que ambas vistas muestren el mismo subconjunto.
   const visibleClients = useMemo(
@@ -418,7 +417,7 @@ function ClientsTab({ projectId }) {
               Tabla
             </button>
           </div>
-          <StatusVisibilityPicker statuses={statuses} hiddenStatusIds={hiddenStatusIds} onToggle={toggleStatusVisible} />
+          <StatusVisibilityPicker statuses={statuses} hiddenStatusIds={hiddenStatusIds} onToggle={onToggleHiddenStatus} />
           {view === 'table' && (
             <ColumnPicker columnDefs={CLIENT_COLUMN_DEFS} order={columnOrder} onToggle={toggleColumn} onMove={moveColumn} />
           )}
@@ -761,6 +760,23 @@ export default function ProjectDetailPage() {
     fetchProject();
   }
 
+  // Compartido por todo el equipo de esta empresa (no por navegador): cualquier
+  // miembro del proyecto puede ocultar/mostrar estatus del Tablero/Tabla y el
+  // cambio se ve igual para todos, sin importar desde qué dispositivo entren.
+  const hiddenStatusIds = useMemo(() => new Set(project?.hiddenStatusIds ?? []), [project?.hiddenStatusIds]);
+
+  async function handleToggleHiddenStatus(statusId) {
+    const next = new Set(project.hiddenStatusIds ?? []);
+    if (next.has(statusId)) next.delete(statusId); else next.add(statusId);
+    const nextArray = [...next];
+    setProject((prev) => ({ ...prev, hiddenStatusIds: nextArray }));
+    try {
+      await api.patch(`/projects/${id}/hidden-statuses`, { hiddenStatusIds: nextArray });
+    } catch {
+      fetchProject();
+    }
+  }
+
   async function handleDeleteProject() {
     if (!window.confirm(`¿Eliminar la empresa "${project.name}"? Esta acción no se puede deshacer.`)) return;
     await api.delete(`/projects/${id}`);
@@ -870,7 +886,13 @@ export default function ProjectDetailPage() {
           onDeleteSection={handleDeleteSection}
         />
       )}
-      {tab === 'clients' && <ClientsTab projectId={id} />}
+      {tab === 'clients' && (
+        <ClientsTab
+          projectId={id}
+          hiddenStatusIds={hiddenStatusIds}
+          onToggleHiddenStatus={handleToggleHiddenStatus}
+        />
+      )}
       {tab === 'lists' && <ListsTab projectId={id} />}
       {tab === 'agenda' && <AgendaTab projectId={id} />}
       {tab === 'dashboard' && <DashboardTab projectId={id} />}

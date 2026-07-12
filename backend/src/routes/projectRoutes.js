@@ -1,7 +1,7 @@
 const express = require('express');
 const { z } = require('zod');
 const {
-  listProjects, getProject, createProject, updateProject, deleteProject, addMember, removeMember,
+  listProjects, getProject, createProject, updateProject, updateHiddenStatuses, deleteProject, addMember, removeMember,
 } = require('../controllers/projectController');
 const { requireAuth, requireRole, requireProjectAccess } = require('../middleware/auth');
 const { validate } = require('../utils/validate');
@@ -31,6 +31,8 @@ const updateSchema = z.object({
 });
 
 const memberSchema = z.object({ userId: z.string().uuid() });
+
+const hiddenStatusesSchema = z.object({ hiddenStatusIds: z.array(z.string().uuid()) });
 
 /**
  * @openapi
@@ -76,6 +78,18 @@ router.post('/', requireRole('ADMIN', 'SUPERVISOR'), validate(createSchema), cre
 router.get('/:projectId', requireProjectAccess, getProject);
 router.patch('/:projectId', requireRole('ADMIN', 'SUPERVISOR'), validate(updateSchema), updateProject);
 router.delete('/:projectId', requireRole('ADMIN', 'SUPERVISOR'), deleteProject);
+
+/**
+ * @openapi
+ * /projects/{projectId}/hidden-statuses:
+ *   patch:
+ *     summary: Set which statuses are hidden from this project's Tablero/Tabla (shared by the whole team)
+ *     tags: [Projects]
+ *     security: [{ bearerAuth: [] }]
+ *     responses:
+ *       200: { description: Updated hidden status list }
+ */
+router.patch('/:projectId/hidden-statuses', requireProjectAccess, validate(hiddenStatusesSchema), updateHiddenStatuses);
 
 /**
  * @openapi
