@@ -10,8 +10,23 @@ import ImportClientsModal from '../components/ImportClientsModal';
 import QuickNoteModal from '../components/QuickNoteModal';
 import StatusBadge, { colorForStatus } from '../components/StatusBadge';
 import CopyableId from '../components/CopyableId';
+import ColumnPicker, { useColumnPrefs } from '../components/ColumnPicker';
 import Icon, { Avatar } from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
+
+const CLIENT_COLUMN_STORAGE_KEY = 'ism-crm-project-clients-columns';
+
+const CLIENT_COLUMN_DEFS = [
+  { key: 'listas', label: 'Listas' },
+  { key: 'contacto', label: 'Contacto', required: true },
+  { key: 'estatus', label: 'Estatus', required: true },
+  { key: 'agente', label: 'Agente' },
+  { key: 'seguimiento', label: 'Próximo seguimiento' },
+  { key: 'nota', label: 'Última nota' },
+  { key: 'direccion', label: 'Dirección', default: false },
+  { key: 'origen', label: 'Origen', default: false },
+  { key: 'etiquetas', label: 'Etiquetas', default: false },
+];
 
 const TABS = [
   { key: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -66,7 +81,126 @@ function BarList({ items, emptyText }) {
   );
 }
 
-function ClientsTable({ clients, statuses, agents, canManageAgents, onStatusChange, onReassign, onAddNote, onDelete }) {
+// Contenido + estilo de cada celda, según la columna. Fuera del componente porque
+// no depende de estado local, solo de los handlers/datos que se le pasan en `ctx`.
+function clientColumnCell(key, c, lastNote, ctx) {
+  switch (key) {
+    case 'listas':
+      return {
+        className: 'px-5 py-3',
+        content: c.listItems?.length > 0 ? (
+          <div className="flex flex-wrap gap-1">
+            {c.listItems.map((li) => (
+              <span key={li.listId} className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                {li.list.name}
+              </span>
+            ))}
+          </div>
+        ) : <span className="text-slate-300">—</span>,
+      };
+    case 'contacto':
+      return {
+        className: 'whitespace-nowrap px-5 py-3',
+        content: (
+          <div className="flex items-center gap-1.5 text-slate-600">
+            <Icon name="phone" className="h-3.5 w-3.5 shrink-0 text-slate-400" />{c.phone}
+          </div>
+        ),
+      };
+    case 'estatus':
+      return {
+        className: 'px-5 py-3',
+        content: (
+          <select
+            value={c.statusId}
+            onChange={(e) => ctx.onStatusChange(c.id, e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className={`cursor-pointer rounded-md border-0 py-1 pl-2.5 pr-6 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${colorForStatus(c.status?.name)}`}
+          >
+            {ctx.statuses.map((s) => <option key={s.id} value={s.id} className="bg-white text-slate-900">{s.name}</option>)}
+          </select>
+        ),
+      };
+    case 'agente':
+      return {
+        className: 'px-5 py-3',
+        content: ctx.canManageAgents ? (
+          <select
+            value={c.assignedAgent?.id ?? ''}
+            onChange={(e) => ctx.onReassign(c.id, e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            className="cursor-pointer whitespace-nowrap rounded-md border border-transparent bg-transparent py-1 text-sm text-slate-600 hover:border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
+          >
+            <option value="">Sin asignar</option>
+            {ctx.agents.map((a) => <option key={a.id} value={a.id}>{a.fullName}</option>)}
+          </select>
+        ) : c.assignedAgent ? (
+          <div className="flex items-center gap-2 whitespace-nowrap text-slate-600">
+            <Avatar name={c.assignedAgent.fullName} className="h-6 w-6 text-[9px]" />
+            {c.assignedAgent.fullName}
+          </div>
+        ) : <span className="text-slate-400">Sin asignar</span>,
+      };
+    case 'seguimiento':
+      return {
+        className: 'whitespace-nowrap px-5 py-3 text-slate-600',
+        content: c.nextFollowUpAt ? (
+          <span className={`inline-flex items-center gap-1.5 ${new Date(c.nextFollowUpAt) < new Date() ? 'font-medium text-rose-600' : ''}`}>
+            <Icon name="calendar" className="h-3.5 w-3.5" />
+            {new Date(c.nextFollowUpAt).toLocaleDateString()}
+          </span>
+        ) : <span className="text-slate-300">—</span>,
+      };
+    case 'nota':
+      return {
+        className: 'max-w-[260px] px-5 py-3',
+        content: (
+          <button
+            onClick={() => ctx.onAddNote(c)}
+            title={lastNote ? `${lastNote.notes}\n\nClic para agregar otra nota` : 'Clic para agregar una nota'}
+            className="block w-full rounded-md px-1.5 py-1 text-left transition hover:bg-orange-50"
+          >
+            {lastNote ? (
+              <div>
+                <p className="truncate text-slate-700">{lastNote.notes}</p>
+                <p className="text-xs text-slate-400">
+                  {lastNote.user?.fullName} · {new Date(lastNote.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+            ) : <span className="text-slate-300 hover:text-orange-600">+ Agregar nota</span>}
+          </button>
+        ),
+      };
+    case 'direccion':
+      return {
+        className: 'max-w-[220px] truncate px-5 py-3 text-slate-600',
+        title: c.address,
+        content: c.address || <span className="text-slate-300">—</span>,
+      };
+    case 'origen':
+      return {
+        className: 'whitespace-nowrap px-5 py-3 text-slate-600',
+        content: c.source || <span className="text-slate-300">—</span>,
+      };
+    case 'etiquetas':
+      return {
+        className: 'px-5 py-3',
+        content: (
+          <div className="flex flex-wrap gap-1">
+            {c.tags?.length > 0 ? c.tags.map((t) => (
+              <span key={t} className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-slate-600">#{t}</span>
+            )) : <span className="text-slate-300">—</span>}
+          </div>
+        ),
+      };
+    default:
+      return { className: 'px-5 py-3', content: null };
+  }
+}
+
+function ClientsTable({ clients, statuses, agents, canManageAgents, visibleKeys, onStatusChange, onReassign, onAddNote, onDelete }) {
+  const colCount = 2 + visibleKeys.length;
+  const cellCtx = { statuses, agents, canManageAgents, onStatusChange, onReassign, onAddNote };
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
@@ -74,12 +208,11 @@ function ClientsTable({ clients, statuses, agents, canManageAgents, onStatusChan
           <thead className="bg-slate-50">
             <tr>
               <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nombre</th>
-              <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Listas</th>
-              <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Contacto</th>
-              <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Estatus</th>
-              <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Agente</th>
-              <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Próximo seguimiento</th>
-              <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Última nota</th>
+              {visibleKeys.map((key) => (
+                <th key={key} className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  {CLIENT_COLUMN_DEFS.find((c) => c.key === key)?.label}
+                </th>
+              ))}
               <th className="whitespace-nowrap px-5 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-500">Acciones</th>
             </tr>
           </thead>
@@ -94,74 +227,14 @@ function ClientsTable({ clients, statuses, agents, canManageAgents, onStatusChan
                       <div className="font-semibold text-slate-900 hover:text-orange-600">{c.fullName}</div>
                     </Link>
                   </td>
-                  <td className="px-5 py-3">
-                    {c.listItems?.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {c.listItems.map((li) => (
-                          <span key={li.listId} className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
-                            {li.list.name}
-                          </span>
-                        ))}
-                      </div>
-                    ) : <span className="text-slate-300">—</span>}
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3">
-                    <div className="flex items-center gap-1.5 text-slate-600">
-                      <Icon name="phone" className="h-3.5 w-3.5 shrink-0 text-slate-400" />{c.phone}
-                    </div>
-                  </td>
-                  <td className="px-5 py-3">
-                    <select
-                      value={c.statusId}
-                      onChange={(e) => onStatusChange(c.id, e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      className={`cursor-pointer rounded-md border-0 py-1 pl-2.5 pr-6 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${colorForStatus(c.status?.name)}`}
-                    >
-                      {statuses.map((s) => <option key={s.id} value={s.id} className="bg-white text-slate-900">{s.name}</option>)}
-                    </select>
-                  </td>
-                  <td className="px-5 py-3">
-                    {canManageAgents ? (
-                      <select
-                        value={c.assignedAgent?.id ?? ''}
-                        onChange={(e) => onReassign(c.id, e.target.value)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="cursor-pointer whitespace-nowrap rounded-md border border-transparent bg-transparent py-1 text-sm text-slate-600 hover:border-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500/30"
-                      >
-                        <option value="">Sin asignar</option>
-                        {agents.map((a) => <option key={a.id} value={a.id}>{a.fullName}</option>)}
-                      </select>
-                    ) : c.assignedAgent ? (
-                      <div className="flex items-center gap-2 whitespace-nowrap text-slate-600">
-                        <Avatar name={c.assignedAgent.fullName} className="h-6 w-6 text-[9px]" />
-                        {c.assignedAgent.fullName}
-                      </div>
-                    ) : <span className="text-slate-400">Sin asignar</span>}
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-3 text-slate-600">
-                    {c.nextFollowUpAt ? (
-                      <span className={`inline-flex items-center gap-1.5 ${new Date(c.nextFollowUpAt) < new Date() ? 'font-medium text-rose-600' : ''}`}>
-                        <Icon name="calendar" className="h-3.5 w-3.5" />
-                        {new Date(c.nextFollowUpAt).toLocaleDateString()}
-                      </span>
-                    ) : <span className="text-slate-300">—</span>}
-                  </td>
-                  <td className="max-w-[260px] px-5 py-3">
-                    <button
-                      onClick={() => onAddNote(c)}
-                      title={lastNote ? `${lastNote.notes}\n\nClic para agregar otra nota` : 'Clic para agregar una nota'}
-                      className="block w-full rounded-md px-1.5 py-1 text-left transition hover:bg-orange-50"
-                    >
-                      {lastNote ? (
-                        <div>
-                          <p className="truncate text-slate-700">{lastNote.notes}</p>
-                          <p className="text-xs text-slate-400">
-                            {lastNote.user?.fullName} · {new Date(lastNote.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      ) : <span className="text-slate-300 hover:text-orange-600">+ Agregar nota</span>}
-                    </button>
-                  </td>
+                  {visibleKeys.map((key) => {
+                    const cell = clientColumnCell(key, c, lastNote, cellCtx);
+                    return (
+                      <td key={key} className={cell.className} title={cell.title}>
+                        {cell.content}
+                      </td>
+                    );
+                  })}
                   <td className="px-5 py-3">
                     <div className="flex items-center justify-end gap-1">
                       <button
@@ -185,7 +258,7 @@ function ClientsTable({ clients, statuses, agents, canManageAgents, onStatusChan
             })}
             {clients.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-5 py-12 text-center">
+                <td colSpan={colCount} className="px-5 py-12 text-center">
                   <Icon name="clients" className="mx-auto h-8 w-8 text-slate-300" strokeWidth={1.5} />
                   <p className="mt-2 text-sm text-slate-400">No hay contactos que coincidan.</p>
                 </td>
@@ -212,6 +285,7 @@ function ClientsTab({ projectId }) {
   const [showNewModal, setShowNewModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [noteClient, setNoteClient] = useState(null);
+  const { order: columnOrder, visibleKeys, toggle: toggleColumn, move: moveColumn } = useColumnPrefs(CLIENT_COLUMN_STORAGE_KEY, CLIENT_COLUMN_DEFS);
 
   const fetchClients = useCallback(() => {
     setLoading(true);
@@ -239,6 +313,20 @@ function ClientsTab({ projectId }) {
       await api.patch(`/clients/${clientId}`, { statusId: newStatusId });
     } catch {
       fetchClients();
+    }
+  }
+
+  async function handleReorderColumns(reordered) {
+    const prevStatuses = statuses;
+    setStatuses(reordered);
+    try {
+      await Promise.all(
+        reordered
+          .map((s, i) => (s.order !== i ? api.patch(`/statuses/${s.id}`, { order: i }) : null))
+          .filter(Boolean)
+      );
+    } catch {
+      setStatuses(prevStatuses);
     }
   }
 
@@ -310,6 +398,9 @@ function ClientsTab({ projectId }) {
               Tabla
             </button>
           </div>
+          {view === 'table' && (
+            <ColumnPicker columnDefs={CLIENT_COLUMN_DEFS} order={columnOrder} onToggle={toggleColumn} onMove={moveColumn} />
+          )}
           <button
             onClick={() => setShowImportModal(true)}
             className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
@@ -331,13 +422,20 @@ function ClientsTab({ projectId }) {
           <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-orange-200 border-t-orange-600" />
         </div>
       ) : view === 'kanban' ? (
-        <KanbanBoard statuses={statuses} clients={clients} onDropClient={handleDropClient} />
+        <KanbanBoard
+          statuses={statuses}
+          clients={clients}
+          onDropClient={handleDropClient}
+          onReorderColumns={handleReorderColumns}
+          canReorderColumns={user.role === 'ADMIN'}
+        />
       ) : (
         <ClientsTable
           clients={clients}
           statuses={statuses}
           agents={agents}
           canManageAgents={canManageAgents}
+          visibleKeys={visibleKeys}
           onStatusChange={handleStatusChange}
           onReassign={handleReassign}
           onAddNote={setNoteClient}
