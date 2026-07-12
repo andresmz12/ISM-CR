@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../api/client';
 import ProjectBoard from '../components/ProjectBoard';
@@ -11,6 +11,7 @@ import QuickNoteModal from '../components/QuickNoteModal';
 import StatusBadge, { colorForStatus } from '../components/StatusBadge';
 import CopyableId from '../components/CopyableId';
 import ColumnPicker, { useColumnPrefs } from '../components/ColumnPicker';
+import StatusVisibilityPicker, { useHiddenStatusIds } from '../components/StatusVisibilityPicker';
 import Icon, { Avatar } from '../components/Icon';
 import { useAuth } from '../context/AuthContext';
 
@@ -297,6 +298,13 @@ function ClientsTab({ projectId }) {
   const [showImportModal, setShowImportModal] = useState(false);
   const [noteClient, setNoteClient] = useState(null);
   const { order: columnOrder, visibleKeys, toggle: toggleColumn, move: moveColumn } = useColumnPrefs(CLIENT_COLUMN_STORAGE_KEY, CLIENT_COLUMN_DEFS);
+  const { hiddenStatusIds, toggle: toggleStatusVisible } = useHiddenStatusIds();
+  // El filtro de Estatus aplica a Tablero y Tabla por igual: lo que se oculta en uno
+  // desaparece del otro también, para que ambas vistas muestren el mismo subconjunto.
+  const visibleClients = useMemo(
+    () => clients.filter((c) => !hiddenStatusIds.has(c.statusId)),
+    [clients, hiddenStatusIds]
+  );
 
   const fetchClients = useCallback(() => {
     setLoading(true);
@@ -409,6 +417,7 @@ function ClientsTab({ projectId }) {
               Tabla
             </button>
           </div>
+          <StatusVisibilityPicker statuses={statuses} hiddenStatusIds={hiddenStatusIds} onToggle={toggleStatusVisible} />
           {view === 'table' && (
             <ColumnPicker columnDefs={CLIENT_COLUMN_DEFS} order={columnOrder} onToggle={toggleColumn} onMove={moveColumn} />
           )}
@@ -435,14 +444,15 @@ function ClientsTab({ projectId }) {
       ) : view === 'kanban' ? (
         <KanbanBoard
           statuses={statuses}
-          clients={clients}
+          clients={visibleClients}
           onDropClient={handleDropClient}
           onReorderColumns={handleReorderColumns}
           canReorderColumns={user.role === 'ADMIN'}
+          hiddenStatusIds={hiddenStatusIds}
         />
       ) : (
         <ClientsTable
-          clients={clients}
+          clients={visibleClients}
           statuses={statuses}
           agents={agents}
           canManageAgents={canManageAgents}
