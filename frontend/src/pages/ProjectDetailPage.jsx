@@ -308,10 +308,11 @@ function ClientsTab({ projectId }) {
 
   const fetchClients = useCallback(() => {
     setLoading(true);
-    return api.get('/clients', { params: { projectId, search: search || undefined, listId: listFilter || undefined, pageSize: 200 } })
+    const excludeStatusIds = hiddenStatusIds.size > 0 ? [...hiddenStatusIds].join(',') : undefined;
+    return api.get('/clients', { params: { projectId, search: search || undefined, listId: listFilter || undefined, excludeStatusIds, pageSize: 200 } })
       .then((res) => setClients(res.data.items))
       .finally(() => setLoading(false));
-  }, [projectId, search, listFilter]);
+  }, [projectId, search, listFilter, hiddenStatusIds]);
 
   const fetchLists = useCallback(() => {
     return api.get(`/projects/${projectId}/lists`).then((res) => setLists(res.data)).catch(() => {});

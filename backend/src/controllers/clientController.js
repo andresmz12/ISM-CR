@@ -75,7 +75,7 @@ async function findDuplicates(phone, phoneAlt, excludeId) {
 }
 
 async function listClients(req, res) {
-  const { search, statusId, assignedAgentId, companyId, projectId, tag, listId, page = '1', pageSize = '25' } = req.query;
+  const { search, statusId, excludeStatusIds, assignedAgentId, companyId, projectId, tag, listId, page = '1', pageSize = '25' } = req.query;
   const where = { ...(await clientScopeFilter(req.user)) };
 
   if (search) {
@@ -87,6 +87,13 @@ async function listClients(req, res) {
     ];
   }
   if (statusId) where.statusId = statusId;
+  // Estatus ocultados desde el picker de Tablero/Tabla (preferencia del navegador,
+  // no borra el estatus): se excluyen a nivel de query para que la paginación no
+  // se llene de clientes que igual no se van a mostrar.
+  if (excludeStatusIds) {
+    const ids = String(excludeStatusIds).split(',').filter(Boolean);
+    if (ids.length) where.statusId = { notIn: ids };
+  }
   if (assignedAgentId && req.user.role !== 'AGENT') where.assignedAgentId = assignedAgentId;
   if (companyId) where.companyId = companyId;
   if (projectId) where.projectId = projectId;
