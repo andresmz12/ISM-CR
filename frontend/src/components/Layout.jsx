@@ -25,6 +25,7 @@ const navSections = [
 ];
 
 const ROLE_LABELS = { ADMIN: 'Administrador', SUPERVISOR: 'Supervisor', AGENT: 'Agente' };
+const COLLAPSED_STORAGE_KEY = 'ism-crm-sidebar-collapsed';
 
 function currentSectionLabel(pathname) {
   const flat = navSections.flatMap((s) => s.items);
@@ -38,21 +39,34 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  // El colapso es solo de escritorio (icon-rail): en mobile el menú ya se abre/cierra
+  // como panel encima del contenido, así que ahí siempre se ve completo.
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem(COLLAPSED_STORAGE_KEY) === '1');
 
   // Al navegar (tocar un enlace) se cierra el menú en móvil.
   useEffect(() => { setSidebarOpen(false); }, [location.pathname]);
+
+  useEffect(() => {
+    localStorage.setItem(COLLAPSED_STORAGE_KEY, collapsed ? '1' : '0');
+  }, [collapsed]);
+
+  const hideWhenCollapsed = collapsed ? 'md:hidden' : '';
 
   return (
     <div className="flex h-screen bg-slate-100 text-slate-900">
       {sidebarOpen && (
         <div className="fixed inset-0 z-30 bg-slate-900/50 md:hidden" onClick={() => setSidebarOpen(false)} />
       )}
-      <aside className={`fixed inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col bg-zinc-950 transition-transform md:static md:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex items-center gap-3 px-5 py-5">
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-60 shrink-0 flex-col bg-zinc-950 transition-all md:static md:translate-x-0 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } ${collapsed ? 'md:w-[68px]' : 'md:w-60'}`}
+      >
+        <div className={`flex items-center gap-3 px-5 py-5 ${collapsed ? 'md:justify-center md:px-0' : ''}`}>
           <BrandMark />
-          <div>
-            <div className="text-sm font-semibold text-white">ISM CRM</div>
-            <div className="text-[11px] text-zinc-500">Gestión de contactos</div>
+          <div className={hideWhenCollapsed}>
+            <div className="whitespace-nowrap text-sm font-semibold text-white">ISM CRM</div>
+            <div className="whitespace-nowrap text-[11px] text-zinc-500">Gestión de contactos</div>
           </div>
         </div>
 
@@ -63,7 +77,7 @@ export default function Layout() {
             return (
               <div key={si}>
                 {section.title && (
-                  <div className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-600">
+                  <div className={`mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-zinc-600 ${hideWhenCollapsed}`}>
                     {section.title}
                   </div>
                 )}
@@ -73,16 +87,19 @@ export default function Layout() {
                       key={item.to}
                       to={item.to}
                       end={item.to === '/'}
+                      title={collapsed ? item.label : undefined}
                       className={({ isActive }) =>
                         `group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition ${
+                          collapsed ? 'md:justify-center md:px-2' : ''
+                        } ${
                           isActive
                             ? 'bg-orange-500/15 text-white shadow-[inset_2px_0_0_0_#f97316]'
                             : 'text-zinc-400 hover:bg-white/5 hover:text-white'
                         }`
                       }
                     >
-                      <Icon name={item.icon} className="h-[18px] w-[18px]" strokeWidth={1.8} />
-                      {item.label}
+                      <Icon name={item.icon} className="h-[18px] w-[18px] shrink-0" strokeWidth={1.8} />
+                      <span className={`whitespace-nowrap ${hideWhenCollapsed}`}>{item.label}</span>
                     </NavLink>
                   ))}
                 </div>
@@ -92,16 +109,26 @@ export default function Layout() {
         </nav>
 
         <div className="border-t border-white/10 p-3">
-          <div className="flex items-center gap-3 rounded-lg px-2 py-2">
-            <Avatar name={user?.fullName} className="h-9 w-9 text-xs" />
-            <div className="min-w-0 flex-1">
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            title={collapsed ? 'Expandir menú' : 'Colapsar menú'}
+            className={`mb-2 hidden w-full items-center gap-2 rounded-lg px-2 py-2 text-xs font-medium text-zinc-500 transition hover:bg-white/10 hover:text-white md:flex ${
+              collapsed ? 'justify-center' : ''
+            }`}
+          >
+            <Icon name={collapsed ? 'chevronRight' : 'chevronLeft'} className="h-4 w-4 shrink-0" strokeWidth={1.8} />
+            <span className={hideWhenCollapsed}>Colapsar menú</span>
+          </button>
+          <div className={`flex items-center gap-3 rounded-lg px-2 py-2 ${collapsed ? 'md:justify-center' : ''}`}>
+            <Avatar name={user?.fullName} className="h-9 w-9 shrink-0 text-xs" />
+            <div className={`min-w-0 flex-1 ${hideWhenCollapsed}`}>
               <div className="truncate text-sm font-medium text-white">{user?.fullName}</div>
               <div className="text-[11px] text-zinc-500">{ROLE_LABELS[user?.role] ?? user?.role}</div>
             </div>
             <button
               onClick={logout}
               title="Cerrar sesión"
-              className="rounded-lg p-2 text-zinc-500 transition hover:bg-white/10 hover:text-white"
+              className={`rounded-lg p-2 text-zinc-500 transition hover:bg-white/10 hover:text-white ${hideWhenCollapsed}`}
             >
               <Icon name="logout" className="h-[18px] w-[18px]" strokeWidth={1.8} />
             </button>
