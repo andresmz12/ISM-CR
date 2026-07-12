@@ -23,6 +23,7 @@ const CLIENT_COLUMN_DEFS = [
   { key: 'agente', label: 'Agente' },
   { key: 'seguimiento', label: 'Próximo seguimiento' },
   { key: 'nota', label: 'Última nota' },
+  { key: 'email', label: 'Email', default: false },
   { key: 'direccion', label: 'Dirección', default: false },
   { key: 'origen', label: 'Origen', default: false },
   { key: 'etiquetas', label: 'Etiquetas', default: false },
@@ -170,6 +171,16 @@ function clientColumnCell(key, c, lastNote, ctx) {
             ) : <span className="text-slate-300 hover:text-orange-600">+ Agregar nota</span>}
           </button>
         ),
+      };
+    case 'email':
+      return {
+        className: 'whitespace-nowrap px-5 py-3 text-slate-600',
+        content: c.email ? (
+          <div className="flex items-center gap-1.5">
+            <Icon name="mail" className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <span className="max-w-[200px] truncate">{c.email}</span>
+          </div>
+        ) : <span className="text-slate-300">—</span>,
       };
     case 'direccion':
       return {
