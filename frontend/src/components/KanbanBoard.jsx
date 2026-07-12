@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Icon, { Avatar } from './Icon';
 import ColumnPicker, { useColumnPrefs } from './ColumnPicker';
@@ -7,6 +7,70 @@ const COLUMN_ACCENTS = [
   'bg-sky-400', 'bg-orange-400', 'bg-violet-400', 'bg-amber-400',
   'bg-rose-400', 'bg-emerald-400', 'bg-slate-400',
 ];
+
+// Los estatus son globales (compartidos entre todas las empresas), así que ocultar
+// una columna del tablero es una preferencia de pantalla por navegador, nunca borra
+// ni desactiva el estatus — sigue disponible en el selector de Estatus de la tabla y
+// en Admin. No usa useColumnPrefs porque `statuses` llega async del backend y el
+// picker de estatus necesita reflejar la lista completa aunque llegue después del
+// primer render (useColumnPrefs solo lee columnDefs una vez, al montar).
+const HIDDEN_STATUS_STORAGE_KEY = 'ism-crm-kanban-hidden-statuses';
+
+function loadHiddenStatusIds() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(HIDDEN_STATUS_STORAGE_KEY) ?? '[]');
+    return new Set(Array.isArray(stored) ? stored : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function StatusVisibilityPicker({ statuses, hiddenStatusIds, onToggle }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((o) => !o)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+      >
+        <Icon name="eye" className="h-4 w-4" />
+        Estatus
+        {hiddenStatusIds.size > 0 && (
+          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">
+            {statuses.length - hiddenStatusIds.size}/{statuses.length}
+          </span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-2 w-60 overflow-hidden rounded-lg border border-slate-200 bg-white py-1.5 shadow-lg">
+          <p className="px-3.5 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+            Columnas visibles en este tablero
+          </p>
+          {statuses.map((s) => (
+            <div
+              key={s.id}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => onToggle(s.id)}
+              className="flex cursor-pointer items-center gap-2.5 px-3.5 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <input
+                type="checkbox"
+                checked={!hiddenStatusIds.has(s.id)}
+                onChange={() => onToggle(s.id)}
+                onClick={(e) => e.stopPropagation()}
+              />
+              {s.name}
+            </div>
+          ))}
+          {statuses.length === 0 && (
+            <p className="px-3.5 py-1.5 text-sm text-slate-400">Sin estatus configurados.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 const CARD_FIELD_STORAGE_KEY = 'ism-crm-kanban-card-fields';
 
@@ -67,14 +131,29 @@ export default function KanbanBoard({ statuses, clients, onDropClient, onReorder
   const [dragId, setDragId] = useState(null);
   const [overStatus, setOverStatus] = useState(null);
   const [dragColId, setDragColId] = useState(null);
+  const [hiddenStatusIds, setHiddenStatusIds] = useState(loadHiddenStatusIds);
   const { visibleKeys: cardFields, order: cardFieldOrder, toggle: toggleCardField, move: moveCardField } =
     useColumnPrefs(CARD_FIELD_STORAGE_KEY, CARD_FIELD_DEFS);
 
-  const columns = statuses.map((status, i) => ({
-    status,
-    accent: COLUMN_ACCENTS[i % COLUMN_ACCENTS.length],
-    items: clients.filter((c) => c.statusId === status.id),
-  }));
+  useEffect(() => {
+    localStorage.setItem(HIDDEN_STATUS_STORAGE_KEY, JSON.stringify([...hiddenStatusIds]));
+  }, [hiddenStatusIds]);
+
+  function toggleStatusVisible(statusId) {
+    setHiddenStatusIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(statusId)) next.delete(statusId); else next.add(statusId);
+      return next;
+    });
+  }
+
+  const columns = statuses
+    .filter((status) => !hiddenStatusIds.has(status.id))
+    .map((status, i) => ({
+      status,
+      accent: COLUMN_ACCENTS[i % COLUMN_ACCENTS.length],
+      items: clients.filter((c) => c.statusId === status.id),
+    }));
 
   function handleColumnDrop(targetStatusId) {
     if (dragColId && dragColId !== targetStatusId) {
@@ -93,7 +172,8 @@ export default function KanbanBoard({ statuses, clients, onDropClient, onReorder
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-2">
+        <StatusVisibilityPicker statuses={statuses} hiddenStatusIds={hiddenStatusIds} onToggle={toggleStatusVisible} />
         <ColumnPicker columnDefs={CARD_FIELD_DEFS} order={cardFieldOrder} onToggle={toggleCardField} onMove={moveCardField} />
       </div>
       <div className="flex gap-4 overflow-x-auto pb-4">
