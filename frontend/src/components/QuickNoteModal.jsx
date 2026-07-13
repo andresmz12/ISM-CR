@@ -5,7 +5,9 @@ import Icon from './Icon';
 const TYPE_LABELS = { CALL: 'Llamada', EMAIL: 'Email', WHATSAPP: 'WhatsApp', SMS: 'SMS', VISIT: 'Visita', OTHER: 'Otro' };
 const INTERACTION_TYPES = ['CALL', 'EMAIL', 'WHATSAPP', 'SMS', 'VISIT', 'OTHER'];
 
-export default function QuickNoteModal({ client, onClose, onSaved }) {
+export default function QuickNoteModal({ client, clients, onClose, onSaved }) {
+  const targets = clients && clients.length > 0 ? clients : client ? [client] : [];
+  const isBulk = targets.length > 1;
   const [type, setType] = useState('CALL');
   const [notes, setNotes] = useState('');
   const [nextFollowUpAt, setNextFollowUpAt] = useState('');
@@ -17,11 +19,12 @@ export default function QuickNoteModal({ client, onClose, onSaved }) {
     setError('');
     setSaving(true);
     try {
-      await api.post(`/clients/${client.id}/interactions`, {
+      const payload = {
         type,
         notes,
         nextFollowUpAt: nextFollowUpAt ? new Date(nextFollowUpAt).toISOString() : undefined,
-      });
+      };
+      await Promise.all(targets.map((c) => api.post(`/clients/${c.id}/interactions`, payload)));
       onSaved();
     } catch (err) {
       setError(err.response?.data?.error || 'No se pudo guardar la nota.');
@@ -38,7 +41,7 @@ export default function QuickNoteModal({ client, onClose, onSaved }) {
         <div className="mb-4 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Agregar nota</h2>
-            <p className="text-sm text-slate-500">{client.fullName}</p>
+            <p className="text-sm text-slate-500">{isBulk ? `${targets.length} contactos seleccionados` : targets[0]?.fullName}</p>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
             <Icon name="x" className="h-5 w-5" />

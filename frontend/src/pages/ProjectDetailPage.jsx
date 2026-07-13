@@ -210,15 +210,24 @@ function clientColumnCell(key, c, lastNote, ctx) {
   }
 }
 
-function ClientsTable({ clients, statuses, agents, canManageAgents, visibleKeys, onStatusChange, onReassign, onAddNote, onDelete }) {
-  const colCount = 2 + visibleKeys.length;
+function ClientsTable({ clients, statuses, agents, canManageAgents, visibleKeys, onStatusChange, onReassign, onAddNote, onDelete, selectedIds, onToggleSelect, onToggleSelectAll }) {
+  const colCount = 3 + visibleKeys.length;
   const cellCtx = { statuses, agents, canManageAgents, onStatusChange, onReassign, onAddNote };
+  const allSelected = clients.length > 0 && clients.every((c) => selectedIds.has(c.id));
   return (
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-slate-200 text-sm">
           <thead className="bg-slate-50">
             <tr>
+              <th className="w-10 px-5 py-3">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={(e) => onToggleSelectAll(clients, e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500/40"
+                />
+              </th>
               <th className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">Nombre</th>
               {visibleKeys.map((key) => (
                 <th key={key} className="whitespace-nowrap px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
@@ -231,8 +240,17 @@ function ClientsTable({ clients, statuses, agents, canManageAgents, visibleKeys,
           <tbody className="divide-y divide-slate-100">
             {clients.map((c) => {
               const lastNote = c.interactions?.[0];
+              const checked = selectedIds.has(c.id);
               return (
-                <tr key={c.id} className="transition hover:bg-slate-50/70">
+                <tr key={c.id} className={`transition hover:bg-slate-50/70 ${checked ? 'bg-orange-50/50' : ''}`}>
+                  <td className="px-5 py-3">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => onToggleSelect(c.id)}
+                      className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500/40"
+                    />
+                  </td>
                   <td className="px-5 py-3">
                     <Link to={`/clients/${c.id}`} className="flex items-center gap-3">
                       <Avatar name={c.fullName} className="h-9 w-9 shrink-0 text-xs" />
@@ -283,6 +301,41 @@ function ClientsTable({ clients, statuses, agents, canManageAgents, visibleKeys,
   );
 }
 
+function BulkActionsBar({ count, statuses, onAddNote, onChangeStatus, onDelete, onClear }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border border-orange-200 bg-orange-50 px-4 py-2.5">
+      <span className="text-sm font-semibold text-orange-800">{count} seleccionado{count === 1 ? '' : 's'}</span>
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        <select
+          defaultValue=""
+          onChange={(e) => { if (e.target.value) { onChangeStatus(e.target.value); e.target.value = ''; } }}
+          className="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm shadow-sm focus:border-orange-500 focus:outline-none"
+        >
+          <option value="" disabled>Cambiar estatus...</option>
+          {statuses.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <button
+          onClick={onAddNote}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
+        >
+          <Icon name="file" className="h-4 w-4" />
+          Agregar nota
+        </button>
+        <button
+          onClick={onDelete}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-1.5 text-sm font-medium text-red-600 shadow-sm transition hover:bg-red-50"
+        >
+          <Icon name="trash" className="h-4 w-4" />
+          Eliminar
+        </button>
+        <button onClick={onClear} className="rounded-lg p-1.5 text-slate-400 hover:bg-white hover:text-slate-600">
+          <Icon name="x" className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ClientsTab({ projectId, hiddenStatusIds, onToggleHiddenStatus }) {
   const { user } = useAuth();
   const canManageAgents = user.role !== 'AGENT';
@@ -297,6 +350,8 @@ function ClientsTab({ projectId, hiddenStatusIds, onToggleHiddenStatus }) {
   const [showNewModal, setShowNewModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [noteClient, setNoteClient] = useState(null);
+  const [noteClients, setNoteClients] = useState(null);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
   const { order: columnOrder, visibleKeys, toggle: toggleColumn, move: moveColumn } = useColumnPrefs(CLIENT_COLUMN_STORAGE_KEY, CLIENT_COLUMN_DEFS);
   // El filtro de Estatus aplica a Tablero y Tabla por igual: lo que se oculta en uno
   // desaparece del otro también, para que ambas vistas muestren el mismo subconjunto.
@@ -325,6 +380,7 @@ function ClientsTab({ projectId, hiddenStatusIds, onToggleHiddenStatus }) {
   }, [canManageAgents]);
   useEffect(() => { fetchLists(); }, [fetchLists]);
   useEffect(() => { fetchClients(); }, [fetchClients]);
+  useEffect(() => { setSelectedIds(new Set()); }, [search, listFilter, hiddenStatusIds]);
 
   async function handleDropClient(clientId, newStatusId) {
     setClients((prev) => prev.map((c) => (c.id === clientId ? { ...c, statusId: newStatusId } : c)));
@@ -377,6 +433,48 @@ function ClientsTab({ projectId, hiddenStatusIds, onToggleHiddenStatus }) {
       fetchClients();
     } catch (err) {
       window.alert(err.response?.data?.error || 'No se pudo eliminar el contacto.');
+    }
+  }
+
+  function toggleSelect(id) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll(pageClients, checked) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      pageClients.forEach((c) => (checked ? next.add(c.id) : next.delete(c.id)));
+      return next;
+    });
+  }
+
+  async function handleBulkDelete() {
+    const ids = [...selectedIds];
+    if (!window.confirm(`¿Eliminar ${ids.length} contacto${ids.length === 1 ? '' : 's'}? Esta acción no se puede deshacer.`)) return;
+    try {
+      await Promise.all(ids.map((id) => api.delete(`/clients/${id}`)));
+    } catch {
+      // seguimos con el refresh aunque alguno haya fallado, para reflejar lo que sí se eliminó
+    } finally {
+      setSelectedIds(new Set());
+      fetchClients();
+    }
+  }
+
+  async function handleBulkStatusChange(statusId) {
+    const ids = [...selectedIds];
+    const status = statuses.find((s) => s.id === statusId);
+    setClients((prev) => prev.map((c) => (ids.includes(c.id) ? { ...c, statusId, status } : c)));
+    try {
+      await Promise.all(ids.map((id) => api.patch(`/clients/${id}`, { statusId })));
+    } catch {
+      fetchClients();
+    } finally {
+      setSelectedIds(new Set());
     }
   }
 
@@ -437,6 +535,16 @@ function ClientsTab({ projectId, hiddenStatusIds, onToggleHiddenStatus }) {
           </button>
         </div>
       </div>
+      {view === 'table' && selectedIds.size > 0 && (
+        <BulkActionsBar
+          count={selectedIds.size}
+          statuses={statuses}
+          onAddNote={() => setNoteClients(visibleClients.filter((c) => selectedIds.has(c.id)))}
+          onChangeStatus={handleBulkStatusChange}
+          onDelete={handleBulkDelete}
+          onClear={() => setSelectedIds(new Set())}
+        />
+      )}
       {loading ? (
         <div className="flex h-48 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-orange-200 border-t-orange-600" />
@@ -461,6 +569,9 @@ function ClientsTab({ projectId, hiddenStatusIds, onToggleHiddenStatus }) {
           onReassign={handleReassign}
           onAddNote={setNoteClient}
           onDelete={handleDelete}
+          selectedIds={selectedIds}
+          onToggleSelect={toggleSelect}
+          onToggleSelectAll={toggleSelectAll}
         />
       )}
       {showNewModal && (
@@ -484,6 +595,13 @@ function ClientsTab({ projectId, hiddenStatusIds, onToggleHiddenStatus }) {
           client={noteClient}
           onClose={() => setNoteClient(null)}
           onSaved={() => { setNoteClient(null); fetchClients(); }}
+        />
+      )}
+      {noteClients && (
+        <QuickNoteModal
+          clients={noteClients}
+          onClose={() => setNoteClients(null)}
+          onSaved={() => { setNoteClients(null); setSelectedIds(new Set()); fetchClients(); }}
         />
       )}
     </div>
