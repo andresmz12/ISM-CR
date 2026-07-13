@@ -60,7 +60,7 @@ export default function ColumnPicker({ columnDefs, order, onToggle, onMove }) {
     <div className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onBlur={() => setOpen(false)}
         className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
       >
         <Icon name="settings" className="h-4 w-4" />
