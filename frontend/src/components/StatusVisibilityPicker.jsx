@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import Icon from './Icon';
+import useClickOutside from '../hooks/useClickOutside';
 
 // Estatus ocultos del Tablero/Tabla de una empresa: preferencia guardada en el
 // proyecto (compartida por todo el equipo, sigue a cada usuario sin importar el
@@ -8,11 +9,12 @@ import Icon from './Icon';
 // (ligado al proyecto); este componente solo dibuja el picker.
 export default function StatusVisibilityPicker({ statuses, hiddenStatusIds, onToggle }) {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  useClickOutside(rootRef, open, () => setOpen(false));
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        onBlur={() => setOpen(false)}
         className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
       >
         <Icon name="eye" className="h-4 w-4" />
@@ -31,7 +33,6 @@ export default function StatusVisibilityPicker({ statuses, hiddenStatusIds, onTo
           {statuses.map((s) => (
             <div
               key={s.id}
-              onMouseDown={(e) => e.preventDefault()}
               onClick={() => onToggle(s.id)}
               className="flex cursor-pointer items-center gap-2.5 px-3.5 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
             >

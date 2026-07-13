@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon';
+import useClickOutside from '../hooks/useClickOutside';
 
 // Preferencias de columnas: qué se ve y en qué orden, persistido por navegador/usuario.
 // `columnDefs` es la lista completa posible; `required: true` fija una columna siempre visible
@@ -53,14 +54,15 @@ export function useColumnPrefs(storageKey, columnDefs) {
 
 export default function ColumnPicker({ columnDefs, order, onToggle, onMove }) {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef(null);
+  useClickOutside(rootRef, open, () => setOpen(false));
   const labelOf = (key) => columnDefs.find((c) => c.key === key)?.label ?? key;
   const requiredOf = (key) => !!columnDefs.find((c) => c.key === key)?.required;
 
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        onBlur={() => setOpen(false)}
         className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50"
       >
         <Icon name="settings" className="h-4 w-4" />
@@ -74,7 +76,6 @@ export default function ColumnPicker({ columnDefs, order, onToggle, onMove }) {
           {order.map((col, i) => (
             <div
               key={col.key}
-              onMouseDown={(e) => e.preventDefault()}
               onClick={() => onToggle(col.key)}
               className="flex cursor-pointer items-center gap-2 px-3.5 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
             >
