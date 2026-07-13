@@ -483,10 +483,10 @@ async function importClients(req, res) {
   const toCreate = [];
 
   rows.forEach((row, index) => {
-    const fullName = String(row.fullName ?? '').trim();
+    const fullName = String(row.fullName ?? '').trim() || String(row.phone ?? '').trim();
     const phone = String(row.phone ?? '').trim();
-    if (!fullName || !phone) {
-      results.errors.push({ row: index + 1, error: 'Nombre y teléfono son obligatorios' });
+    if (!phone) {
+      results.errors.push({ row: index + 1, error: 'El teléfono es obligatorio' });
       return;
     }
 
