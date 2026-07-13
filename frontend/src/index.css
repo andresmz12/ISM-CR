@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+html {
+  /* La app es un tema claro fijo (no soporta modo oscuro); sin esto, Safari/Chrome
+     en macOS con Modo Oscuro del sistema activado renderizan los <select> nativos
+     (y otros controles) en oscuro, chocando con el diseño claro de la app. */
+  color-scheme: light;
+}
+
 html, body, #root {
   height: 100%;
 }
