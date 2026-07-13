@@ -8,7 +8,8 @@ import KanbanBoard from '../components/KanbanBoard';
 import NewClientModal from '../components/NewClientModal';
 import ImportClientsModal from '../components/ImportClientsModal';
 import QuickNoteModal from '../components/QuickNoteModal';
-import StatusBadge, { colorForStatus } from '../components/StatusBadge';
+import StatusBadge from '../components/StatusBadge';
+import StatusDropdown from '../components/StatusDropdown';
 import CopyableId from '../components/CopyableId';
 import ColumnPicker, { useColumnPrefs } from '../components/ColumnPicker';
 import StatusVisibilityPicker from '../components/StatusVisibilityPicker';
@@ -113,14 +114,11 @@ function clientColumnCell(key, c, lastNote, ctx) {
       return {
         className: 'px-5 py-3',
         content: (
-          <select
+          <StatusDropdown
             value={c.statusId}
-            onChange={(e) => ctx.onStatusChange(c.id, e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            className={`cursor-pointer rounded-md border-0 py-1 pl-2.5 pr-6 text-xs font-semibold text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50 ${colorForStatus(c.status?.name)}`}
-          >
-            {ctx.statuses.map((s) => <option key={s.id} value={s.id} className="bg-white text-slate-900">{s.name}</option>)}
-          </select>
+            statuses={ctx.statuses}
+            onChange={(statusId) => ctx.onStatusChange(c.id, statusId)}
+          />
         ),
       };
     case 'agente':
