@@ -34,6 +34,8 @@ function buildCallNotes(call) {
 async function handleCallEnded(req, res) {
   const { prospect, call } = req.body;
   const norm = normalizePhoneOrNull(prospect.phone);
+  // TEMPORAL — diagnóstico de mismatch de teléfono, quitar una vez confirmado.
+  console.log(`[calls][DEBUG TEMPORAL] prospect.phone crudo=${JSON.stringify(prospect.phone)} (tipo ${typeof prospect.phone}), normalizado="${norm}"`);
   const existingClient = norm
     ? await prisma.client.findFirst({ where: { OR: [{ phoneNormalized: norm }, { phoneAltNormalized: norm }] } })
     : null;
