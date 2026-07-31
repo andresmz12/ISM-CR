@@ -9,13 +9,21 @@ const router = express.Router();
 const callWebhookSchema = z.object({
   event: z.literal('call_ended'),
   timestamp: z.string(),
-  organization: z.object({ id: z.union([z.string(), z.number()]), name: z.string().optional() }).optional(),
-  agent: z.object({ name: z.string().optional(), company: z.string().optional() }).optional(),
+  organization: z.object({
+    id: z.union([z.string(), z.number()]).nullable().optional(),
+    name: z.string().nullable().optional(),
+  }).nullable().optional(),
+  agent: z.object({
+    name: z.string().nullable().optional(),
+    company: z.string().nullable().optional(),
+  }).nullable().optional(),
   prospect: z.object({
-    id: z.union([z.string(), z.number()]).optional(),
-    name: z.string().optional(),
-    phone: z.union([z.string().min(1), z.number()]).transform(String),
-    company: z.string().optional(),
+    id: z.union([z.string(), z.number()]).nullable().optional(),
+    name: z.string().nullable().optional(),
+    phone: z.union([z.string().min(1), z.number()])
+      .nullable()
+      .transform((v) => (v === null ? null : String(v))),
+    company: z.string().nullable().optional(),
   }),
   call: z.object({
     id: z.union([z.string(), z.number()]),
