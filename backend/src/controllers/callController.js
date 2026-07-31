@@ -39,6 +39,8 @@ async function handleCallEnded(req, res) {
     : null;
 
   if (!existingClient) {
+    // TEMPORAL — diagnóstico de qué pasa con los 200 en prod, quitar una vez confirmado.
+    console.log(`[calls][DEBUG TEMPORAL] skipped=true, sin cliente para phone normalizado="${norm}", call.id=${call?.id}`);
     // Nada que persistir: no hace falta dedupe, un reintento vuelve a calcular
     // exactamente la misma respuesta sin efectos secundarios.
     return res.json({ existing: false, clientId: null, skipped: true });
@@ -70,11 +72,15 @@ async function handleCallEnded(req, res) {
     ]);
   } catch (err) {
     if (err.code === 'P2002') {
+      // TEMPORAL — diagnóstico de qué pasa con los 200 en prod, quitar una vez confirmado.
+      console.log(`[calls][DEBUG TEMPORAL] duplicate=true (call.id=${call?.id} ya procesado), clientId=${existingClient.id}`);
       return res.json({ existing: true, duplicate: true });
     }
     throw err;
   }
 
+  // TEMPORAL — diagnóstico de qué pasa con los 200 en prod, quitar una vez confirmado.
+  console.log(`[calls][DEBUG TEMPORAL] Interaction creada, clientId=${existingClient.id}, call.id=${call?.id}`);
   res.json({ existing: true, clientId: existingClient.id });
 }
 
