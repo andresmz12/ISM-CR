@@ -5,6 +5,7 @@ const { requireApiKey } = require('../middleware/auth');
 const { validate } = require('../utils/validate');
 const { asyncHandler } = require('../utils/asyncHandler');
 const { pickAutoAssignAgent } = require('../utils/autoAssign');
+const { normalizePhoneOrNull } = require('../utils/phone');
 
 const router = express.Router();
 router.use(requireApiKey);
@@ -92,11 +93,6 @@ const leadSchema = z.object({
   source: z.string().optional(),
   notes: z.string().optional(),
 });
-
-function normalizePhoneOrNull(p) {
-  const n = String(p ?? '').replace(/\D/g, '');
-  return n || null;
-}
 
 function normalizeEmailOrNull(e) {
   const n = String(e ?? '').trim().toLowerCase();

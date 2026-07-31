@@ -2,19 +2,7 @@ const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
 const { agentsByLoad, pickAutoAssignAgent } = require('../utils/autoAssign');
 const { clientScopeFilter, myFollowUpScopeFilter } = require('../utils/clientScope');
-
-// Normaliza teléfonos a solo dígitos para comparar duplicados
-// ("8888-1234" y "88881234" deben coincidir).
-function normalizePhone(p) {
-  return String(p ?? '').replace(/\D/g, '');
-}
-
-// Igual que normalizePhone pero devuelve null para vacíos, que es lo que
-// se guarda en las columnas phoneNormalized/phoneAltNormalized.
-function normalizePhoneOrNull(p) {
-  const n = normalizePhone(p);
-  return n || null;
-}
+const { normalizePhone, normalizePhoneOrNull } = require('../utils/phone');
 
 // Igual que normalizePhoneOrNull pero para email: minúsculas + trim, para
 // matchear sin diferenciar mayúsculas/minúsculas (ver emailNormalized en el schema).

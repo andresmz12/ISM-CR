@@ -1,10 +1,6 @@
 const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
-
-function normalizePhoneOrNull(p) {
-  const n = String(p ?? '').replace(/\D/g, '');
-  return n || null;
-}
+const { normalizePhoneOrNull } = require('../utils/phone');
 
 async function findSystemUser() {
   const systemEmail = process.env.SYSTEM_USER_EMAIL || 'sistema@ism.local';
@@ -34,15 +30,11 @@ function buildCallNotes(call) {
 async function handleCallEnded(req, res) {
   const { prospect, call } = req.body;
   const norm = normalizePhoneOrNull(prospect.phone);
-  // TEMPORAL — diagnóstico de mismatch de teléfono, quitar una vez confirmado.
-  console.log(`[calls][DEBUG TEMPORAL] prospect.phone crudo=${JSON.stringify(prospect.phone)} (tipo ${typeof prospect.phone}), normalizado="${norm}"`);
   const existingClient = norm
     ? await prisma.client.findFirst({ where: { OR: [{ phoneNormalized: norm }, { phoneAltNormalized: norm }] } })
     : null;
 
   if (!existingClient) {
-    // TEMPORAL — diagnóstico de qué pasa con los 200 en prod, quitar una vez confirmado.
-    console.log(`[calls][DEBUG TEMPORAL] skipped=true, sin cliente para phone normalizado="${norm}", call.id=${call?.id}`);
     // Nada que persistir: no hace falta dedupe, un reintento vuelve a calcular
     // exactamente la misma respuesta sin efectos secundarios.
     return res.json({ existing: false, clientId: null, skipped: true });
@@ -74,15 +66,11 @@ async function handleCallEnded(req, res) {
     ]);
   } catch (err) {
     if (err.code === 'P2002') {
-      // TEMPORAL — diagnóstico de qué pasa con los 200 en prod, quitar una vez confirmado.
-      console.log(`[calls][DEBUG TEMPORAL] duplicate=true (call.id=${call?.id} ya procesado), clientId=${existingClient.id}`);
       return res.json({ existing: true, duplicate: true });
     }
     throw err;
   }
 
-  // TEMPORAL — diagnóstico de qué pasa con los 200 en prod, quitar una vez confirmado.
-  console.log(`[calls][DEBUG TEMPORAL] Interaction creada, clientId=${existingClient.id}, call.id=${call?.id}`);
   res.json({ existing: true, clientId: existingClient.id });
 }
 

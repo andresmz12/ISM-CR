@@ -2,6 +2,7 @@ const prisma = require('../config/prisma');
 const { wrapAll } = require('../utils/asyncHandler');
 const { fetchPickupRequestDetail, RecogidaPaqApiError } = require('../services/recogidaPaqClient');
 const { pickAutoAssignAgent } = require('../utils/autoAssign');
+const { normalizePhoneOrNull } = require('../utils/phone');
 
 const STATUS_MAP = {
   PENDING: 'Pendiente de recogida',
@@ -10,11 +11,6 @@ const STATUS_MAP = {
   DELIVERED: 'Entregado',
   FAILED: 'Fallido',
 };
-
-function normalizePhoneOrNull(p) {
-  const n = String(p ?? '').replace(/\D/g, '');
-  return n || null;
-}
 
 // RECOGIDA-PAQ manda la dirección partida en varios campos (calle, ciudad,
 // estado, código postal) en vez de un string único — se concatena con comas,
