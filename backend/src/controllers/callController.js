@@ -8,20 +8,25 @@ async function findSystemUser() {
     ?? (await prisma.user.findFirst({ where: { role: 'ADMIN' } }));
 }
 
+// ZyraVoice no manda un campo dedicado para la dirección confirmada por el
+// cliente — se busca en `summary` el patrón "dirección...: <texto>". Es un
+// heurístico frágil (depende de cómo ZyraVoice redacte el resumen); si no
+// matchea, simplemente no hay línea de dirección, no se inventa nada.
+// Captura hasta fin de línea (no hasta el primer ".") porque direcciones con
+// abreviaturas ("Av.", "No.") cortarían la captura a la mitad si se parara
+// en el punto.
+function extractConfirmedAddress(call) {
+  const match = String(call.summary ?? '').match(/direcci[oó]n[^:]*:\s*([^\n]+)/i);
+  return match ? match[1].trim() : null;
+}
+
 function buildCallNotes(call) {
-  const lines = [
-    `[ZyraVoice] Llamada finalizada — resultado: ${call.outcome ?? 'desconocido'}, sentimiento: ${call.sentiment ?? 'desconocido'}`,
-    call.appointment_scheduled ? `Cita agendada: ${call.appointment_date ?? 'fecha no especificada'}` : 'Sin cita agendada',
-    call.summary ? `Resumen: ${call.summary}` : null,
-    call.recording_url ? `Grabación: ${call.recording_url}` : null,
-    Array.isArray(call.client_said) && call.client_said.length > 0
-      ? `Cliente dijo: ${call.client_said.map((s) => `"${s}"`).join(' | ')}`
-      : null,
-    Array.isArray(call.agent_said) && call.agent_said.length > 0
-      ? `Agente dijo: ${call.agent_said.map((s) => `"${s}"`).join(' | ')}`
-      : null,
-  ];
-  return lines.filter(Boolean).join('\n');
+  const outcome = call.outcome ?? 'desconocido';
+  const address = extractConfirmedAddress(call);
+  if (!address) {
+    return `[ZyraVoice] Llamada realizada — ${outcome}`;
+  }
+  return `[ZyraVoice] Llamada confirmada — ${outcome}\n📍 Dirección confirmada: ${address}`;
 }
 
 // La llamada la origina ZyraVoice desde su propia lista de prospectos: si el
